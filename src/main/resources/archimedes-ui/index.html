@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Archimedes · API Explorer</title>
+    <style>
+        body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; color: #222; }
+        h1 { font-size: 20px; }
+        #q { padding: 8px; width: 320px; font-size: 14px; margin-bottom: 12px; }
+        table { border-collapse: collapse; width: 100%; font-size: 13px; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+        th { background: #f5f5f5; position: sticky; top: 0; }
+        .m { font-weight: 600; }
+        .dep { text-decoration: line-through; color: #999; }
+        code { background: #f2f2f2; padding: 1px 4px; border-radius: 3px; }
+        #count { color: #666; font-size: 12px; margin-left: 8px; }
+    </style>
+</head>
+<body>
+<h1>Archimedes · REST API Explorer<span id="count"></span></h1>
+<input id="q" placeholder="filter by path / method / class..." oninput="render()">
+<table>
+    <thead>
+    <tr><th>Method</th><th>Path</th><th>Handler</th><th>Params</th><th>Returns</th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+</table>
+<script>
+    var API_URL = "__ARCHIMEDES_API_URL__";
+    var data = [];
+
+    function esc(s) {
+        return String(s).replace(/[&<>]/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c];
+        });
+    }
+
+    function paramText(p) {
+        return p.map(function (x) { return x.name + ':' + x.source; }).join(', ');
+    }
+
+    function render() {
+        var q = document.getElementById('q').value.toLowerCase();
+        var rows = data.filter(function (a) {
+            var hay = (a.httpMethods.join(' ') + ' ' + a.paths.join(' ') + ' ' + a.controllerClass).toLowerCase();
+            return hay.indexOf(q) >= 0;
+        });
+        document.getElementById('count').textContent = ' (' + rows.length + '/' + data.length + ')';
+        document.getElementById('rows').innerHTML = rows.map(function (a) {
+            var cls = a.deprecated ? ' class="dep"' : '';
+            return '<tr' + cls + '>'
+                + '<td class="m">' + esc(a.httpMethods.join(', ')) + '</td>'
+                + '<td>' + a.paths.map(function (p) { return '<code>' + esc(p) + '</code>'; }).join('<br>') + '</td>'
+                + '<td>' + esc(a.controllerClass.split('.').pop()) + '#' + esc(a.handlerMethod) + '</td>'
+                + '<td>' + esc(paramText(a.params)) + '</td>'
+                + '<td><code>' + esc(a.returnType) + '</code></td>'
+                + '</tr>';
+        }).join('');
+    }
+
+    fetch(API_URL)
+        .then(function (r) { return r.json(); })
+        .then(function (j) { data = j; render(); })
+        .catch(function (e) {
+            document.getElementById('rows').innerHTML =
+                '<tr><td colspan="5">Failed to load: ' + esc(e) + '</td></tr>';
+        });
+</script>
+</body>
+</html>
