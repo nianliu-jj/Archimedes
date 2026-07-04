@@ -31,12 +31,12 @@ public class ArchimedesApiController {
         this.properties = properties;
     }
 
-    @GetMapping(value = "${archimedes.api.base-path:/archimedes}/apis", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "${archimedes.api.base-path:" + ArchimedesApiProperties.DEFAULT_BASE_PATH + "}/apis", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<ApiInfo> apis() {
         return scanner.scan();
     }
 
-    @GetMapping(value = "${archimedes.api.base-path:/archimedes}", produces = MediaType.TEXT_HTML_VALUE)
+    @GetMapping(value = "${archimedes.api.base-path:" + ArchimedesApiProperties.DEFAULT_BASE_PATH + "}", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> ui() throws IOException {
         if (!properties.isUiEnabled()) {
             return ResponseEntity.notFound().build();

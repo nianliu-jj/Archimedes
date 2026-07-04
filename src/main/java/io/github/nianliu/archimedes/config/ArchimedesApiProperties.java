@@ -8,11 +8,14 @@ import java.util.List;
 @ConfigurationProperties(prefix = "archimedes.api")
 public class ArchimedesApiProperties {
 
+    /** base-path 默认值；同时供 ArchimedesApiController 的 @GetMapping 占位符默认使用，避免多处硬编码。 */
+    public static final String DEFAULT_BASE_PATH = "/archimedes";
+
     /** 总开关。 */
     private boolean enabled = true;
 
-    /** 端点根路径；JSON = {basePath}/apis，UI = {basePath}。 */
-    private String basePath = "/archimedes";
+    /** 端点根路径；JSON = {basePath}/apis，UI = {basePath}。规范键为 kebab-case：archimedes.api.base-path。 */
+    private String basePath = DEFAULT_BASE_PATH;
 
     /** 是否在 {basePath} 挂载内置页面。 */
     private boolean uiEnabled = true;
