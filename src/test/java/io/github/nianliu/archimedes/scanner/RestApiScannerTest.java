@@ -1,0 +1,71 @@
+package io.github.nianliu.archimedes.scanner;
+
+import io.github.nianliu.archimedes.config.ArchimedesApiProperties;
+import io.github.nianliu.archimedes.model.ApiInfo;
+import io.github.nianliu.archimedes.model.ParamInfo;
+import io.github.nianliu.archimedes.model.ParamSource;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class RestApiScannerTest {
+
+    private RestApiScanner scannerFor(Class<?>... controllers) {
+        RequestMappingHandlerMapping mapping = SampleControllers.buildMapping(controllers);
+        return new RestApiScanner(List.of(mapping), new ArchimedesApiProperties());
+    }
+
+    private ApiInfo find(List<ApiInfo> apis, String path) {
+        return apis.stream()
+                .filter(a -> a.getPaths().contains(path))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no api for " + path));
+    }
+
+    @Test
+    void scansPathsMethodsAndReturnType() {
+        List<ApiInfo> apis = scannerFor(SampleControllers.UserController.class).scan();
+
+        ApiInfo getUser = find(apis, "/api/users/{id}");
+        assertThat(getUser.getHttpMethods()).containsExactly("GET");
+        assertThat(getUser.getControllerClass()).endsWith("UserController");
+        assertThat(getUser.getHandlerMethod()).isEqualTo("getUser");
+        assertThat(getUser.getReturnType()).isEqualTo("java.lang.String");
+    }
+
+    @Test
+    void scansParametersWithSource() {
+        List<ApiInfo> apis = scannerFor(SampleControllers.UserController.class).scan();
+
+        List<ParamInfo> params = find(apis, "/api/users/{id}").getParams();
+        assertThat(params).extracting(ParamInfo::getName).contains("id", "filter");
+        ParamInfo id = params.stream().filter(p -> p.getName().equals("id")).findFirst().orElseThrow();
+        assertThat(id.getSource()).isEqualTo(ParamSource.PATH);
+        assertThat(id.getType()).isEqualTo("java.lang.Long");
+        assertThat(id.isRequired()).isTrue();
+        ParamInfo filter = params.stream().filter(p -> p.getName().equals("filter")).findFirst().orElseThrow();
+        assertThat(filter.getSource()).isEqualTo(ParamSource.QUERY);
+        assertThat(filter.isRequired()).isFalse();
+
+        ParamInfo body = find(apis, "/api/users").getParams().get(0);
+        assertThat(body.getSource()).isEqualTo(ParamSource.BODY);
+    }
+
+    @Test
+    void scansGenericReturnTypeAndDeprecated() {
+        List<ApiInfo> apis = scannerFor(SampleControllers.UserController.class).scan();
+
+        ApiInfo legacy = find(apis, "/api/users/legacy");
+        assertThat(legacy.getReturnType()).isEqualTo("java.util.List<java.lang.String>");
+        assertThat(legacy.isDeprecated()).isTrue();
+    }
+
+    @Test
+    void cachesResult() {
+        RestApiScanner scanner = scannerFor(SampleControllers.UserController.class);
+        assertThat(scanner.scan()).isSameAs(scanner.scan());
+    }
+}
