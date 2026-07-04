@@ -61,12 +61,10 @@ Archimedes 是一个 **Spring Boot Starter**，目标是"引入即用的 API 可
 
 ### 4.1 模块与依赖策略
 - **单模块** JAR。
-- `spring-webmvc`、`spring-boot-autoconfigure` 标 `<optional>true</optional>`，**继承用户项目版本**，从而自动适配 2.x/3.x。
+- `spring-webmvc`、`spring-boot-autoconfigure`、`slf4j-api` 标 `<optional>true</optional>`，**继承用户项目版本**。
 - **不**引入 actuator、websocket。
-- 双份自动装配注册文件，实现跨版本自动生效：
-  - `META-INF/spring.factories` —— key `org.springframework.boot.autoconfigure.EnableAutoConfiguration`（Boot 2 读取，Boot 3 忽略该 key）。
-  - `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` —— 每行一个类名（Boot 3 读取，Boot 2 忽略此文件）。
-- **待实现时敲定的小细节**：自动装配类的注解写法。`@AutoConfiguration` 需 Boot ≥ 2.7；若要兼容更低 2.x，则用 `@Configuration(proxyBeanMethods = false)`。默认锚定 **Boot 2.7+ / 3.x**，用 `@AutoConfiguration`；如需更低版本再退回 `@Configuration`。
+- **切片一具体目标**：编译 Java 17（`maven.compiler.release=17`）、依赖 Boot **3.3.5**，在 **JDK 21** 上构建/测试（本机 JDK 21 跑 Boot 2.7 测试不可靠）。扫描代码只用在 Spring 5.3/6 中签名一致的 Web API，故**逻辑上 2.x 就绪**；经真机认证的 Boot 2.x 支持与多版本 CI 归入后续切片（见第 10 节）。
+- 自动装配注册：因锚定 **Boot 2.7+ / 3.x**（`AutoConfiguration.imports` 自 2.7 起被读取），只需**单份** `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`，装配类用 `@AutoConfiguration`。不再需要 `spring.factories`（可避免 Boot 3 的弃用告警）。
 
 ### 4.2 组件划分
 ```
@@ -85,8 +83,8 @@ io.github.nianliu.archimedes
     └── ArchimedesApiController           // @RestController：GET {base-path}/apis 返回 JSON；GET {base-path} 返回内置 HTML（当 ui-enabled）
 src/main/resources/
 └── archimedes-ui/index.html              // 极简表格页面（原生 JS，零构建）。放在 static/ 之外，仅由 controller 在
-                                          // {base-path} 下服务，避免被静态资源处理器以固定 URL 重复暴露；页面用相对地址
-                                          // fetch "apis"，与 base-path 解耦
+                                          // {base-path} 下服务，避免被静态资源处理器以固定 URL 重复暴露；controller 把绝对
+                                          // API 地址注入页面（替换占位符 __ARCHIMEDES_API_URL__），与 base-path 解耦
 ```
 
 每个单元职责单一、边界清晰：
@@ -133,7 +131,7 @@ ParamInfo:
       └─ 首次访问 {base-path}/apis
           └─ RestApiScanner 懒扫描并缓存（AtomicReference，零启动开销）
               └─ ArchimedesApiController 返回 List<ApiInfo> JSON
-                  └─ 内置页面（{base-path}）相对 fetch "apis" → 渲染可搜索表格
+                  └─ 内置页面（{base-path}，controller 注入绝对 API 地址）fetch → 渲染可搜索表格
 ```
 
 - **扫描时机**：懒加载——首次访问端点时扫描一次并缓存。避开启动期 Bean 就绪顺序问题，零启动开销。（备选：`ApplicationReadyEvent` 预热；本切采用懒加载。）
