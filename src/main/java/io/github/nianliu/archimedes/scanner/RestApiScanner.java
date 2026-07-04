@@ -58,7 +58,10 @@ public class RestApiScanner {
         for (RequestMappingHandlerMapping mapping : handlerMappings) {
             for (Map.Entry<RequestMappingInfo, HandlerMethod> entry : mapping.getHandlerMethods().entrySet()) {
                 try {
-                    apis.add(toApiInfo(entry.getKey(), entry.getValue()));
+                    ApiInfo info = toApiInfo(entry.getKey(), entry.getValue());
+                    if (!isExcluded(info)) {
+                        apis.add(info);
+                    }
                 } catch (Exception ex) {
                     log.warn("Archimedes: failed to parse handler {}, skipped", entry.getValue(), ex);
                 }
@@ -87,6 +90,29 @@ public class RestApiScanner {
         info.setDeprecated(method.isAnnotationPresent(Deprecated.class)
                 || handlerMethod.getBeanType().isAnnotationPresent(Deprecated.class));
         return info;
+    }
+
+    private boolean isExcluded(ApiInfo info) {
+        String controllerClass = info.getControllerClass();
+        if (controllerClass.contains("BasicErrorController")) {
+            return true;
+        }
+        String basePath = properties.getBasePath();
+        boolean underBasePath = info.getPaths().stream()
+                .anyMatch(p -> p.equals(basePath) || p.startsWith(basePath + "/"));
+        if (underBasePath) {
+            return true;
+        }
+        boolean isError = info.getPaths().stream()
+                .anyMatch(p -> p.equals("/error") || p.startsWith("/error/"));
+        if (isError) {
+            return true;
+        }
+        List<String> basePackages = properties.getBasePackages();
+        if (basePackages != null && !basePackages.isEmpty()) {
+            return basePackages.stream().noneMatch(controllerClass::startsWith);
+        }
+        return false;
     }
 
     static List<String> extractPaths(RequestMappingInfo mappingInfo) {
