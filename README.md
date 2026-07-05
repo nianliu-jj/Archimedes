@@ -49,7 +49,7 @@
 启动后访问：
 
 - `GET /archimedes/apis` — 接口契约 JSON
-- `GET /archimedes` — 内置 UI 页面
+- `GET /archimedes` — 内置 UI 页面：按协议分 Tab（REST / WebSocket / RPC / TR / Trace Logs），支持文本过滤、REST 方法筛选与 RPC/TR 协议筛选；REST 条目可行内展开 **在线调试**（按契约预填参数发起请求，响应携带 trace 头时一键跳转链路日志查询）
 
 ## 版本矩阵
 

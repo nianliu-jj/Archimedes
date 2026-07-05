@@ -76,6 +76,8 @@ class EndToEndTest {
         assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(resp.getBody()).contains("/archimedes/apis");
         assertThat(resp.getBody()).doesNotContain("__ARCHIMEDES_API_URL__");
+        // Slice 12：Tab 化导航（协议分 Tab + REST 在线调试面板）
+        assertThat(resp.getBody()).contains("id=\"tabs\"");
     }
 
     private List<Map<String, Object>> restApis(String body) throws Exception {

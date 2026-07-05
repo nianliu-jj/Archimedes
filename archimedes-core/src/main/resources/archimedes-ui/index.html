@@ -6,8 +6,6 @@
     <style>
         body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; color: #222; }
         h1 { font-size: 20px; }
-        h2 { font-size: 15px; margin: 20px 0 8px; }
-        #q { padding: 8px; width: 320px; font-size: 14px; margin-bottom: 12px; }
         table { border-collapse: collapse; width: 100%; font-size: 13px; }
         th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
         th { background: #f5f5f5; position: sticky; top: 0; }
@@ -17,86 +15,360 @@
         .count { color: #666; font-size: 12px; margin-left: 8px; font-weight: normal; }
         .kind { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; background: #e8f0fe; color: #1a56b0; }
         .empty { color: #999; font-style: italic; }
+        #tabs { border-bottom: 2px solid #1a56b0; margin-top: 16px; }
+        .tab-btn { background: none; border: none; padding: 8px 14px; font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #555; }
+        .tab-btn.active { color: #1a56b0; border-bottom-color: #1a56b0; font-weight: 600; }
+        .tab-badge { background: #eee; border-radius: 8px; padding: 0 6px; font-size: 11px; color: #666; margin-left: 5px; }
+        .panel { display: none; margin-top: 12px; }
+        .panel.active { display: block; }
+        .toolbar { margin-top: 12px; }
+        #q { padding: 8px; width: 320px; font-size: 14px; }
+        #restMethod { padding: 7px; font-size: 13px; margin-left: 8px; }
+        .chip { display: inline-block; padding: 2px 10px; border: 1px solid #ccc; border-radius: 12px; font-size: 12px; cursor: pointer; margin-left: 6px; }
+        .chip.on { background: #1a56b0; color: #fff; border-color: #1a56b0; }
+        .meta { color: #888; font-size: 11px; margin-top: 2px; }
+        .try-btn { padding: 2px 10px; font-size: 12px; cursor: pointer; }
+        .try-cell { background: #fafbfd; padding: 12px; }
+        .try-cell h3 { margin: 10px 0 4px; font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: .04em; }
+        .try-cell input, .try-cell select, .try-cell button { font-size: 12px; padding: 4px 6px; margin: 2px 6px 2px 0; }
+        .try-cell textarea { font-size: 12px; padding: 4px 6px; width: 60%; min-height: 80px; font-family: Consolas, Menlo, monospace; display: block; }
+        .send-btn { background: #1a56b0; color: #fff; border: 1px solid #1a56b0; border-radius: 3px; padding: 5px 18px; cursor: pointer; }
+        .kv input { width: 170px; }
+        .req { color: #c0392b; }
+        .result pre { background: #f2f2f2; padding: 10px; overflow: auto; max-height: 320px; font-size: 12px; margin: 4px 0; white-space: pre-wrap; word-break: break-all; }
+        .status-ok { color: #0a7d38; font-weight: 600; }
+        .status-err { color: #c0392b; font-weight: 600; }
     </style>
 </head>
 <body>
 <h1>Archimedes · API Explorer</h1>
-<input id="q" placeholder="filter by path / method / class..." oninput="render()">
 
-<h2>REST APIs<span class="count" id="restCount"></span></h2>
-<table>
-    <thead>
-    <tr><th>Method</th><th>Path</th><th>Handler</th><th>Params</th><th>Returns</th></tr>
-    </thead>
-    <tbody id="restRows"></tbody>
-</table>
+<nav id="tabs">
+    <button class="tab-btn" id="tabbtn-rest" onclick="switchTab('rest')">REST<span class="tab-badge" id="badge-rest">0</span></button>
+    <button class="tab-btn" id="tabbtn-ws" onclick="switchTab('ws')">WebSocket<span class="tab-badge" id="badge-ws">0</span></button>
+    <button class="tab-btn" id="tabbtn-rpc" onclick="switchTab('rpc')">RPC<span class="tab-badge" id="badge-rpc">0</span></button>
+    <button class="tab-btn" id="tabbtn-tr" onclick="switchTab('tr')">TR<span class="tab-badge" id="badge-tr">0</span></button>
+    <button class="tab-btn" id="tabbtn-trace" onclick="switchTab('trace')">Trace Logs</button>
+</nav>
 
-<h2>WebSocket APIs<span class="count" id="wsCount"></span></h2>
-<table>
-    <thead>
-    <tr><th>Kind</th><th>Path / Destination</th><th>Handler</th><th>SockJS</th></tr>
-    </thead>
-    <tbody id="wsRows"></tbody>
-</table>
-
-<h2>RPC APIs<span class="count" id="rpcCount"></span></h2>
-<table>
-    <thead>
-    <tr><th>Protocol</th><th>Service</th><th>Version / Group</th><th>Methods</th></tr>
-    </thead>
-    <tbody id="rpcRows"></tbody>
-</table>
-
-<h2>Trace Logs</h2>
-<div>
-    <input id="traceIdInput" placeholder="enter traceId to query logs..." style="padding:8px;width:320px;font-size:14px;">
-    <button onclick="queryTrace()" style="padding:8px 16px;font-size:14px;">Query</button>
-    <span class="count" id="traceCount"></span>
+<div class="toolbar">
+    <input id="q" placeholder="filter by path / method / class..." oninput="render()">
+    <select id="restMethod" onchange="render()"><option value="">all methods</option></select>
+    <span id="chips-rpc"></span>
+    <span id="chips-tr"></span>
 </div>
-<table style="margin-top:8px;">
-    <thead>
-    <tr><th>Time</th><th>Thread</th><th>Level</th><th>Logger</th><th>Message</th></tr>
-    </thead>
-    <tbody id="traceRows"><tr><td colspan="5" class="empty">enter a traceId and query</td></tr></tbody>
-</table>
+
+<section class="panel" id="panel-rest">
+    <table>
+        <thead>
+        <tr><th>Method</th><th>Path</th><th>Handler</th><th>Params</th><th>Returns</th><th style="width:60px">Try</th></tr>
+        </thead>
+        <tbody id="restRows"></tbody>
+    </table>
+    <span class="count" id="restCount"></span>
+</section>
+
+<section class="panel" id="panel-ws">
+    <table>
+        <thead>
+        <tr><th>Kind</th><th>Path / Destination</th><th>Handler</th><th>SockJS</th></tr>
+        </thead>
+        <tbody id="wsRows"></tbody>
+    </table>
+    <span class="count" id="wsCount"></span>
+</section>
+
+<section class="panel" id="panel-rpc">
+    <table>
+        <thead>
+        <tr><th>Protocol</th><th>Service</th><th>Version / Group</th><th>Methods</th></tr>
+        </thead>
+        <tbody id="rpcRows"></tbody>
+    </table>
+    <span class="count" id="rpcCount"></span>
+</section>
+
+<section class="panel" id="panel-tr">
+    <table>
+        <thead>
+        <tr><th>Protocol</th><th>Service</th><th>Version / Group</th><th>Methods</th></tr>
+        </thead>
+        <tbody id="trRows"></tbody>
+    </table>
+    <span class="count" id="trCount"></span>
+</section>
+
+<section class="panel" id="panel-trace">
+    <div>
+        <input id="traceIdInput" placeholder="enter traceId to query logs..." style="padding:8px;width:320px;font-size:14px;">
+        <button onclick="queryTrace()" style="padding:8px 16px;font-size:14px;">Query</button>
+        <span class="count" id="traceCount"></span>
+    </div>
+    <table style="margin-top:8px;">
+        <thead>
+        <tr><th>Time</th><th>Thread</th><th>Level</th><th>Logger</th><th>Message</th></tr>
+        </thead>
+        <tbody id="traceRows"><tr><td colspan="5" class="empty">enter a traceId and query</td></tr></tbody>
+    </table>
+</section>
 
 <script>
     var API_URL = "__ARCHIMEDES_API_URL__";
+    var BASE_URL = API_URL.replace(/\/apis$/, '');
+    var TABS = ['rest', 'ws', 'rpc', 'tr', 'trace'];
+    var TR_PROTOCOLS = ['SOFA_TR', 'TRPC'];
     var catalog = { restApis: [], webSocketApis: [], rpcApis: [] };
+    var currentTab = 'rest';
+    var protoFilter = { rpc: 'ALL', tr: 'ALL' };
+    var restRendered = [];
+    var openTry = -1;
+    var tryApi = null;
 
     function esc(s) {
-        return String(s).replace(/[&<>]/g, function (c) {
-            return {'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c];
+        return String(s).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
         });
     }
+
+    /* ---------- tabs ---------- */
+
+    function switchTab(name) {
+        currentTab = name;
+        for (var i = 0; i < TABS.length; i++) {
+            var t = TABS[i];
+            document.getElementById('tabbtn-' + t).className = 'tab-btn' + (t === name ? ' active' : '');
+            document.getElementById('panel-' + t).className = 'panel' + (t === name ? ' active' : '');
+        }
+        document.getElementById('q').style.display = name === 'trace' ? 'none' : '';
+        document.getElementById('restMethod').style.display = name === 'rest' ? '' : 'none';
+        document.getElementById('chips-rpc').style.display = name === 'rpc' ? '' : 'none';
+        document.getElementById('chips-tr').style.display = name === 'tr' ? '' : 'none';
+        if (history.replaceState) { history.replaceState(null, '', '#' + name); } else { location.hash = name; }
+    }
+
+    function splitRpc(all) {
+        var out = { rpc: [], tr: [] };
+        for (var i = 0; i < all.length; i++) {
+            (TR_PROTOCOLS.indexOf(all[i].protocol) >= 0 ? out.tr : out.rpc).push(all[i]);
+        }
+        return out;
+    }
+
+    function render() {
+        var q = document.getElementById('q').value.toLowerCase();
+        renderRest(q);
+        renderWs(q);
+        var split = splitRpc(catalog.rpcApis || []);
+        renderRpcInto('rpc', split.rpc, q);
+        renderRpcInto('tr', split.tr, q);
+        document.getElementById('badge-rest').textContent = (catalog.restApis || []).length;
+        document.getElementById('badge-ws').textContent = (catalog.webSocketApis || []).length;
+        document.getElementById('badge-rpc').textContent = split.rpc.length;
+        document.getElementById('badge-tr').textContent = split.tr.length;
+    }
+
+    /* ---------- REST tab ---------- */
 
     function paramText(p) {
         return p.map(function (x) { return x.name + ':' + x.source; }).join(', ');
     }
 
     function renderRest(q) {
-        var all = catalog.restApis;
+        openTry = -1;
+        tryApi = null;
+        var all = catalog.restApis || [];
+        var mf = document.getElementById('restMethod').value;
         var rows = all.filter(function (a) {
             var hay = (a.httpMethods.join(' ') + ' ' + a.paths.join(' ') + ' ' + a.controllerClass).toLowerCase();
-            return hay.indexOf(q) >= 0;
+            return hay.indexOf(q) >= 0 && (!mf || a.httpMethods.indexOf(mf) >= 0);
         });
+        restRendered = rows;
         document.getElementById('restCount').textContent = ' (' + rows.length + '/' + all.length + ')';
         document.getElementById('restRows').innerHTML = rows.length === 0
-            ? '<tr><td colspan="5" class="empty">no REST endpoints</td></tr>'
-            : rows.map(function (a) {
+            ? '<tr><td colspan="6" class="empty">no REST endpoints</td></tr>'
+            : rows.map(function (a, i) {
                 var cls = a.deprecated ? ' class="dep"' : '';
-                return '<tr' + cls + '>'
+                return '<tr id="rest-r' + i + '"' + cls + '>'
                     + '<td class="m">' + esc(a.httpMethods.join(', ')) + '</td>'
                     + '<td>' + a.paths.map(function (p) { return '<code>' + esc(p) + '</code>'; }).join('<br>') + '</td>'
                     + '<td>' + esc(a.controllerClass.split('.').pop()) + '#' + esc(a.handlerMethod) + '</td>'
                     + '<td>' + esc(paramText(a.params)) + '</td>'
                     + '<td><code>' + esc(a.returnType) + '</code></td>'
+                    + '<td><button class="try-btn" onclick="toggleTry(' + i + ')">Try</button></td>'
                     + '</tr>';
             }).join('');
     }
 
+    function populateMethodFilter() {
+        var methods = [];
+        (catalog.restApis || []).forEach(function (a) {
+            a.httpMethods.forEach(function (m) {
+                if (methods.indexOf(m) < 0) { methods.push(m); }
+            });
+        });
+        methods.sort();
+        var sel = document.getElementById('restMethod');
+        sel.innerHTML = '<option value="">all methods</option>' + methods.map(function (m) {
+            return '<option value="' + esc(m) + '">' + esc(m) + '</option>';
+        }).join('');
+    }
+
+    /* ---------- REST try-it ---------- */
+
+    function toggleTry(i) {
+        var existing = document.getElementById('tryRow');
+        var wasOpen = openTry;
+        if (existing) { existing.parentNode.removeChild(existing); }
+        openTry = -1;
+        tryApi = null;
+        if (wasOpen === i) { return; }
+        openTry = i;
+        tryApi = restRendered[i];
+        var row = document.getElementById('rest-r' + i);
+        var tr = document.createElement('tr');
+        tr.id = 'tryRow';
+        tr.innerHTML = '<td colspan="6" class="try-cell">' + tryFormHtml(tryApi) + '</td>';
+        row.parentNode.insertBefore(tr, row.nextSibling);
+        renderTryPathVars();
+    }
+
+    function kvRowHtml(name, required) {
+        return '<div class="kv"><input placeholder="name" class="kv-k" value="' + esc(name) + '">'
+            + ' = <input placeholder="value" class="kv-v">'
+            + (required ? '<span class="req" title="required">*</span>' : '')
+            + '</div>';
+    }
+
+    function tryFormHtml(api) {
+        var methods = api.httpMethods.length ? api.httpMethods : ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+        var queryRows = '', headerRows = '';
+        var hasBodyParam = false;
+        api.params.forEach(function (p) {
+            if (p.source === 'QUERY') { queryRows += kvRowHtml(p.name, p.required); }
+            if (p.source === 'HEADER') { headerRows += kvRowHtml(p.name, p.required); }
+            if (p.source === 'BODY') { hasBodyParam = true; }
+        });
+        var mayHaveBody = hasBodyParam || methods.join(' ').match(/POST|PUT|PATCH|DELETE/);
+        var ct = (api.consumes && api.consumes.length) ? api.consumes[0] : 'application/json';
+        return '<div>'
+            + '<select id="tryMethod">' + methods.map(function (m) {
+                return '<option value="' + esc(m) + '">' + esc(m) + '</option>';
+            }).join('') + '</select>'
+            + '<select id="tryPath" onchange="renderTryPathVars()">' + api.paths.map(function (p) {
+                return '<option value="' + esc(p) + '">' + esc(p) + '</option>';
+            }).join('') + '</select>'
+            + '<span id="tryPathVars"></span>'
+            + '<button class="send-btn" onclick="sendTryRequest()">Send</button>'
+            + '</div>'
+            + '<h3>Query Params</h3><div id="tryQuery">' + queryRows + '</div>'
+            + '<button class="try-btn" onclick="addKvRow(\'tryQuery\')">+ param</button>'
+            + '<h3>Headers</h3><div id="tryHeaders">' + headerRows + '</div>'
+            + '<button class="try-btn" onclick="addKvRow(\'tryHeaders\')">+ header</button>'
+            + (mayHaveBody
+                ? '<h3>Body</h3><div>Content-Type <input id="tryCt" value="' + esc(ct) + '" style="width:220px"></div>'
+                    + '<textarea id="tryBody" placeholder="request body (skipped for GET/HEAD)">'
+                    + (hasBodyParam ? '{}' : '') + '</textarea>'
+                : '')
+            + '<div class="result" id="tryResult"></div>';
+    }
+
+    function addKvRow(containerId) {
+        var d = document.createElement('div');
+        d.innerHTML = kvRowHtml('', false);
+        document.getElementById(containerId).appendChild(d.firstChild);
+    }
+
+    function pathVarNames(path) {
+        var out = [];
+        var m = String(path).match(/\{[^}]+\}/g) || [];
+        for (var i = 0; i < m.length; i++) { out.push(m[i].slice(1, -1).split(':')[0]); }
+        return out;
+    }
+
+    function renderTryPathVars() {
+        var names = pathVarNames(document.getElementById('tryPath').value);
+        document.getElementById('tryPathVars').innerHTML = names.map(function (n) {
+            return ' <label><code>{' + esc(n) + '}</code>=</label><input class="pv" data-name="' + esc(n) + '" style="width:110px">';
+        }).join('');
+    }
+
+    function collectKv(containerId) {
+        var out = [];
+        var rows = document.getElementById(containerId).getElementsByClassName('kv');
+        for (var i = 0; i < rows.length; i++) {
+            var k = rows[i].getElementsByClassName('kv-k')[0].value.trim();
+            var v = rows[i].getElementsByClassName('kv-v')[0].value;
+            if (k) { out.push({ k: k, v: v }); }
+        }
+        return out;
+    }
+
+    function sendTryRequest() {
+        var method = document.getElementById('tryMethod').value;
+        var path = document.getElementById('tryPath').value;
+        var pvs = document.querySelectorAll('#tryPathVars .pv');
+        for (var i = 0; i < pvs.length; i++) {
+            var name = pvs[i].getAttribute('data-name').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            path = path.replace(new RegExp('\\{' + name + '(:[^}]*)?\\}'), encodeURIComponent(pvs[i].value));
+        }
+        var qs = collectKv('tryQuery').map(function (p) {
+            return encodeURIComponent(p.k) + '=' + encodeURIComponent(p.v);
+        });
+        var url = path + (qs.length ? (path.indexOf('?') >= 0 ? '&' : '?') + qs.join('&') : '');
+        var headers = {};
+        collectKv('tryHeaders').forEach(function (h) { headers[h.k] = h.v; });
+        var opts = { method: method, headers: headers };
+        var bodyEl = document.getElementById('tryBody');
+        if (bodyEl && bodyEl.value !== '' && method !== 'GET' && method !== 'HEAD') {
+            opts.body = bodyEl.value;
+            var ct = document.getElementById('tryCt').value.trim();
+            if (ct) { headers['Content-Type'] = ct; }
+        }
+        var t0 = Date.now();
+        document.getElementById('tryResult').innerHTML = '<span class="empty">sending...</span>';
+        fetch(url, opts)
+            .then(function (r) {
+                return r.text().then(function (txt) { return { r: r, txt: txt, ms: Date.now() - t0 }; });
+            })
+            .then(function (res) { renderTryResult(res.r, res.txt, res.ms); })
+            .catch(function (e) {
+                document.getElementById('tryResult').innerHTML =
+                    '<span class="status-err">Request failed: ' + esc(e) + '</span>';
+            });
+    }
+
+    function renderTryResult(r, txt, ms) {
+        var pretty = txt;
+        try { pretty = JSON.stringify(JSON.parse(txt), null, 2); } catch (e) { /* keep raw */ }
+        var headerLines = [];
+        var traceId = null;
+        r.headers.forEach(function (v, k) {
+            headerLines.push(k + ': ' + v);
+            if (traceId === null && k.toLowerCase().indexOf('trace') >= 0) { traceId = v; }
+        });
+        var cls = r.status < 400 ? 'status-ok' : 'status-err';
+        document.getElementById('tryResult').innerHTML =
+            '<div><span class="' + cls + '">HTTP ' + r.status + '</span>'
+            + '<span class="count">' + ms + ' ms</span>'
+            + (traceId
+                ? ' <button class="try-btn" data-trace="' + esc(traceId)
+                    + '" onclick="jumpToTrace(this.getAttribute(\'data-trace\'))">View trace logs</button>'
+                : '')
+            + '</div>'
+            + '<h3>Response Headers</h3><pre>' + esc(headerLines.join('\n')) + '</pre>'
+            + '<h3>Response Body</h3><pre>' + (pretty === '' ? '(empty)' : esc(pretty)) + '</pre>';
+    }
+
+    function jumpToTrace(traceId) {
+        switchTab('trace');
+        document.getElementById('traceIdInput').value = traceId;
+        queryTrace();
+    }
+
+    /* ---------- WebSocket tab ---------- */
+
     function renderWs(q) {
-        var all = catalog.webSocketApis;
+        var all = catalog.webSocketApis || [];
         var rows = all.filter(function (w) {
             var hay = (w.kind + ' ' + w.path + ' ' + w.handlerClass).toLowerCase();
             return hay.indexOf(q) >= 0;
@@ -116,6 +388,8 @@
             }).join('');
     }
 
+    /* ---------- RPC / TR tabs ---------- */
+
     function simpleName(fqcn) {
         return String(fqcn).split('.').pop();
     }
@@ -124,36 +398,57 @@
         return m.methodName + '(' + m.parameterTypes.map(simpleName).join(', ') + ') : ' + simpleName(m.returnType);
     }
 
-    function renderRpc(q) {
-        var all = catalog.rpcApis || [];
+    function metaText(meta) {
+        if (!meta) { return ''; }
+        var parts = [];
+        for (var k in meta) {
+            if (meta.hasOwnProperty(k)) { parts.push(esc(k) + '=' + esc(meta[k])); }
+        }
+        return parts.length ? '<div class="meta">' + parts.join(' · ') + '</div>' : '';
+    }
+
+    function renderRpcInto(kind, all, q) {
+        var pf = protoFilter[kind];
         var rows = all.filter(function (r) {
             var hay = (r.protocol + ' ' + r.serviceName + ' ' + (r.version || '') + ' ' + (r.group || '')).toLowerCase();
-            return hay.indexOf(q) >= 0;
+            return hay.indexOf(q) >= 0 && (pf === 'ALL' || r.protocol === pf);
         });
-        document.getElementById('rpcCount').textContent = ' (' + rows.length + '/' + all.length + ')';
-        document.getElementById('rpcRows').innerHTML = rows.length === 0
-            ? '<tr><td colspan="4" class="empty">no RPC services</td></tr>'
+        document.getElementById(kind + 'Count').textContent = ' (' + rows.length + '/' + all.length + ')';
+        document.getElementById(kind + 'Rows').innerHTML = rows.length === 0
+            ? '<tr><td colspan="4" class="empty">no ' + (kind === 'tr' ? 'TR' : 'RPC') + ' services</td></tr>'
             : rows.map(function (r) {
                 var vg = [r.version, r.group].filter(Boolean).join(' / ');
                 return '<tr>'
                     + '<td><span class="kind">' + esc(r.protocol) + '</span></td>'
-                    + '<td title="' + esc(r.serviceName) + '"><code>' + esc(r.serviceName) + '</code></td>'
+                    + '<td><code>' + esc(r.serviceName) + '</code>' + metaText(r.metadata) + '</td>'
                     + '<td>' + esc(vg) + '</td>'
                     + '<td>' + r.methods.map(function (m) {
                         return '<code>' + esc(methodText(m)) + '</code>';
                     }).join('<br>') + '</td>'
                     + '</tr>';
             }).join('');
+        renderChips(kind, all);
     }
 
-    function render() {
-        var q = document.getElementById('q').value.toLowerCase();
-        renderRest(q);
-        renderWs(q);
-        renderRpc(q);
+    function renderChips(kind, all) {
+        var protos = [];
+        for (var i = 0; i < all.length; i++) {
+            if (protos.indexOf(all[i].protocol) < 0) { protos.push(all[i].protocol); }
+        }
+        protos.sort();
+        document.getElementById('chips-' + kind).innerHTML = ['ALL'].concat(protos).map(function (p) {
+            return '<span class="chip' + (protoFilter[kind] === p ? ' on' : '')
+                + '" onclick="setProto(\'' + kind + '\',\'' + esc(p) + '\')">' + esc(p) + '</span>';
+        }).join('');
     }
 
-    var BASE_URL = API_URL.replace(/\/apis$/, '');
+    function setProto(kind, p) {
+        protoFilter[kind] = p;
+        render();
+    }
+
+    /* ---------- Trace Logs tab ---------- */
+
     var threadColors = {};
     var colorPalette = ['#e8f0fe', '#fde8e8', '#e8fdf0', '#fdf6e8', '#f0e8fd', '#e8f8fd'];
 
@@ -190,13 +485,22 @@
             });
     }
 
+    /* ---------- init ---------- */
+
     fetch(API_URL)
         .then(function (r) { return r.json(); })
-        .then(function (j) { catalog = j; render(); })
+        .then(function (j) {
+            catalog = j;
+            populateMethodFilter();
+            render();
+        })
         .catch(function (e) {
             document.getElementById('restRows').innerHTML =
-                '<tr><td colspan="5">Failed to load: ' + esc(e) + '</td></tr>';
+                '<tr><td colspan="6">Failed to load: ' + esc(e) + '</td></tr>';
         });
+
+    var initialTab = (location.hash || '').replace('#', '');
+    switchTab(TABS.indexOf(initialTab) >= 0 ? initialTab : 'rest');
 </script>
 </body>
 </html>
