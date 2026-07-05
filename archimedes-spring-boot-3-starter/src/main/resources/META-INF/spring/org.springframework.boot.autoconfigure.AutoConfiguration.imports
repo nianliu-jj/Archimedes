@@ -1,2 +1,3 @@
 io.github.nianliu.archimedes.boot3.ArchimedesAutoConfiguration
 io.github.nianliu.archimedes.boot3.ArchimedesTraceAutoConfiguration
+io.github.nianliu.archimedes.boot3.ArchimedesLogAutoConfiguration

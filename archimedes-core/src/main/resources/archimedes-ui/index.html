@@ -39,6 +39,19 @@
     <tbody id="wsRows"></tbody>
 </table>
 
+<h2>Trace Logs</h2>
+<div>
+    <input id="traceIdInput" placeholder="enter traceId to query logs..." style="padding:8px;width:320px;font-size:14px;">
+    <button onclick="queryTrace()" style="padding:8px 16px;font-size:14px;">Query</button>
+    <span class="count" id="traceCount"></span>
+</div>
+<table style="margin-top:8px;">
+    <thead>
+    <tr><th>Time</th><th>Thread</th><th>Level</th><th>Logger</th><th>Message</th></tr>
+    </thead>
+    <tbody id="traceRows"><tr><td colspan="5" class="empty">enter a traceId and query</td></tr></tbody>
+</table>
+
 <script>
     var API_URL = "__ARCHIMEDES_API_URL__";
     var catalog = { restApis: [], webSocketApis: [] };
@@ -99,6 +112,43 @@
         var q = document.getElementById('q').value.toLowerCase();
         renderRest(q);
         renderWs(q);
+    }
+
+    var BASE_URL = API_URL.replace(/\/apis$/, '');
+    var threadColors = {};
+    var colorPalette = ['#e8f0fe', '#fde8e8', '#e8fdf0', '#fdf6e8', '#f0e8fd', '#e8f8fd'];
+
+    function threadBadge(thread) {
+        if (!(thread in threadColors)) {
+            threadColors[thread] = colorPalette[Object.keys(threadColors).length % colorPalette.length];
+        }
+        return '<span class="kind" style="background:' + threadColors[thread] + ';color:#333">' + esc(thread) + '</span>';
+    }
+
+    function queryTrace() {
+        var traceId = document.getElementById('traceIdInput').value.trim();
+        if (!traceId) { return; }
+        threadColors = {};
+        fetch(BASE_URL + '/logs/trace/' + encodeURIComponent(traceId) + '?page=1&size=500')
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                document.getElementById('traceCount').textContent = ' (' + j.logs.length + '/' + j.total + ')';
+                document.getElementById('traceRows').innerHTML = j.logs.length === 0
+                    ? '<tr><td colspan="5" class="empty">no logs captured for this traceId</td></tr>'
+                    : j.logs.map(function (l) {
+                        return '<tr>'
+                            + '<td><code>' + esc(l.timestamp) + '</code></td>'
+                            + '<td>' + threadBadge(l.thread) + '</td>'
+                            + '<td class="m">' + esc(l.level) + '</td>'
+                            + '<td>' + esc(l.logger.split('.').pop()) + '</td>'
+                            + '<td>' + esc(l.message) + '</td>'
+                            + '</tr>';
+                    }).join('');
+            })
+            .catch(function (e) {
+                document.getElementById('traceRows').innerHTML =
+                    '<tr><td colspan="5">Failed to load: ' + esc(e) + '</td></tr>';
+            });
     }
 
     fetch(API_URL)

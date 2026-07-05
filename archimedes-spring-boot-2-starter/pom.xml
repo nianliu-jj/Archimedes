@@ -55,6 +55,11 @@
             <artifactId>spring-messaging</artifactId>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <optional>true</optional>
+        </dependency>
         <!-- SB2 世界的 servlet/websocket API：artifact 名为 jakarta.* 但 4.x/1.x 版本仍是 javax.* 包名 -->
         <dependency>
             <groupId>jakarta.servlet</groupId>

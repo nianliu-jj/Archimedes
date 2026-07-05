@@ -56,6 +56,12 @@
             <artifactId>slf4j-api</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- 采集 Appender 的编译面 API（AppenderBase/ILoggingEvent/LoggerContext）在 1.2.x 与 1.5.x 一致 -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <optional>true</optional>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

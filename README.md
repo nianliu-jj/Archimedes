@@ -98,6 +98,16 @@ executor.submit(MdcWrappers.wrap(runnable));
 
 注意：若宿主定义了任意 `Executor` Bean（例如启用 STOMP 后其内部通道执行器），Spring Boot 的 `applicationTaskExecutor` 会退避，`@Async` 退化为非容器管理的 `SimpleAsyncTaskExecutor`（无法自动传递）。Archimedes 启动时会检测该场景并打 WARN——按提示定义名为 `taskExecutor` 的 Bean 即可回到覆盖范围。
 
+## 链路日志查询
+
+logback 环境下**引入即用**：结构化采集 Appender 编程式挂载 root logger（与日志输出格式完全解耦，改 pattern 不影响查询），只采集 MDC 含 traceId 的日志。
+
+- `GET {base-path}/logs/trace/{traceId}?page=1&size=200` — 按 traceId 查询该链路全部日志（含跨线程），时间升序分页
+- `GET {base-path}/trace/current` — 当前请求的 traceId
+- 内置 UI 的 **Trace Logs** 分区：输入 traceId 查询，时间线展示、按线程着色区分
+
+存储默认为内存有界实现（重启即失）：全局上限 `archimedes.log.capture.max-entries`（默认 10000）、单链路上限 `max-entries-per-trace`（默认 500），超限按最老链路整体淘汰。生产持久化（如 Elasticsearch）通过注册自定义 `LogStore` Bean 接入，内存实现自动让位（`@ConditionalOnMissingBean`）。`archimedes.log.capture.enabled=false` 可整体关闭。
+
 ## 构建与示例
 
 ```bash
