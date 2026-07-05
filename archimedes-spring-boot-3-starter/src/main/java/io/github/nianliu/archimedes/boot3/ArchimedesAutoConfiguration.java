@@ -3,6 +3,7 @@ package io.github.nianliu.archimedes.boot3;
 import io.github.nianliu.archimedes.config.ArchimedesApiProperties;
 import io.github.nianliu.archimedes.scanner.RestApiScanner;
 import io.github.nianliu.archimedes.scanner.rpc.DubboRpcScanner;
+import io.github.nianliu.archimedes.scanner.rpc.GrpcRpcScanner;
 import io.github.nianliu.archimedes.scanner.rpc.RpcApiContributor;
 import io.github.nianliu.archimedes.scanner.ws.SpringWebSocketHandlerScanner;
 import io.github.nianliu.archimedes.scanner.ws.StompMappingScanner;
@@ -94,6 +95,17 @@ public class ArchimedesAutoConfiguration {
         @Bean
         public DubboRpcScanner archimedesDubboRpcScanner(ApplicationContext applicationContext) {
             return new DubboRpcScanner(applicationContext);
+        }
+    }
+
+    /** 宿主存在 gRPC 时装配 BindableService 扫描。 */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(io.grpc.BindableService.class)
+    static class GrpcScanConfiguration {
+
+        @Bean
+        public GrpcRpcScanner archimedesGrpcRpcScanner(ApplicationContext applicationContext) {
+            return new GrpcRpcScanner(applicationContext);
         }
     }
 }

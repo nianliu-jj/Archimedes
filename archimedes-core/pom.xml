@@ -69,6 +69,13 @@
             <version>${dubbo.version}</version>
             <optional>true</optional>
         </dependency>
+        <!-- gRPC 扫描器编译面（BindableService/ServerServiceDefinition/MethodDescriptor，1.33+ 稳定） -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-api</artifactId>
+            <version>${grpc.version}</version>
+            <optional>true</optional>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
