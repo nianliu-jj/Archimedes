@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: archimedes-example-boot2
+
+server:
+  port: 8081
+
+archimedes:
+  api:
+    enabled: true
+    ui-enabled: true
+    base-path: /archimedes
+    base-packages:
+      - io.github.nianliu.archimedes.example.boot2
+
+logging:
+  level:
+    io.github.nianliu.archimedes: DEBUG

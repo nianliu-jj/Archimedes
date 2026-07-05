@@ -10,6 +10,7 @@
 | `archimedes-spring-boot-2-starter` | Spring Boot 2.7.x（javax）薄注册层，`spring.factories` 注册 |
 | `archimedes-spring-boot-3-starter` | Spring Boot 3.x（jakarta）薄注册层，`AutoConfiguration.imports` 注册 |
 | `example` | SB3 示例应用，验证"引入即用" |
+| `example-boot2` | SB 2.7 示例应用（javax），验证 2.x starter 的"引入即用" |
 
 ## 快速开始
 
@@ -58,5 +59,6 @@ archimedes:
 
 ```bash
 mvn clean install                # 构建全部模块（JDK 21）
-mvn -pl example -am spring-boot:run   # 运行示例应用，访问 http://localhost:8080/archimedes
+mvn -pl example -am spring-boot:run        # SB3 示例，http://localhost:8080/archimedes
+mvn -pl example-boot2 -am spring-boot:run  # SB2.7 示例，http://localhost:8081/archimedes
 ```
