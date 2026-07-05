@@ -4,7 +4,7 @@ import io.github.nianliu.archimedes.config.ArchimedesApiProperties;
 import io.github.nianliu.archimedes.model.ApiCatalog;
 import io.github.nianliu.archimedes.model.RpcApiInfo;
 import io.github.nianliu.archimedes.model.WsApiInfo;
-import io.github.nianliu.archimedes.scanner.RestApiScanner;
+import io.github.nianliu.archimedes.scanner.RestApiContributor;
 import io.github.nianliu.archimedes.scanner.rpc.RpcApiContributor;
 import io.github.nianliu.archimedes.scanner.ws.WebSocketApiContributor;
 import org.springframework.core.io.ClassPathResource;
@@ -28,23 +28,23 @@ public class ArchimedesApiController {
     private static final String UI_RESOURCE = "archimedes-ui/index.html";
     private static final String API_URL_PLACEHOLDER = "__ARCHIMEDES_API_URL__";
 
-    private final RestApiScanner scanner;
+    private final RestApiContributor scanner;
     private final ArchimedesApiProperties properties;
     private final List<WebSocketApiContributor> webSocketContributors;
     private final List<RpcApiContributor> rpcContributors;
     private final AtomicReference<String> renderedUi = new AtomicReference<>();
 
-    public ArchimedesApiController(RestApiScanner scanner, ArchimedesApiProperties properties) {
+    public ArchimedesApiController(RestApiContributor scanner, ArchimedesApiProperties properties) {
         this(scanner, properties, Collections.<WebSocketApiContributor>emptyList(),
                 Collections.<RpcApiContributor>emptyList());
     }
 
-    public ArchimedesApiController(RestApiScanner scanner, ArchimedesApiProperties properties,
+    public ArchimedesApiController(RestApiContributor scanner, ArchimedesApiProperties properties,
                                    List<WebSocketApiContributor> webSocketContributors) {
         this(scanner, properties, webSocketContributors, Collections.<RpcApiContributor>emptyList());
     }
 
-    public ArchimedesApiController(RestApiScanner scanner, ArchimedesApiProperties properties,
+    public ArchimedesApiController(RestApiContributor scanner, ArchimedesApiProperties properties,
                                    List<WebSocketApiContributor> webSocketContributors,
                                    List<RpcApiContributor> rpcContributors) {
         this.scanner = scanner;

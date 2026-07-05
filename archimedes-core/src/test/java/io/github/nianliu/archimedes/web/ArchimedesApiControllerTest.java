@@ -3,7 +3,7 @@ package io.github.nianliu.archimedes.web;
 import io.github.nianliu.archimedes.config.ArchimedesApiProperties;
 import io.github.nianliu.archimedes.model.ApiCatalog;
 import io.github.nianliu.archimedes.model.WsApiInfo;
-import io.github.nianliu.archimedes.scanner.RestApiScanner;
+import io.github.nianliu.archimedes.scanner.RestApiContributor;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -12,11 +12,11 @@ import org.springframework.http.ResponseEntity;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 class ArchimedesApiControllerTest {
 
-    private final RestApiScanner scanner = mock(RestApiScanner.class);
+    // scan() 在骨架上是 final 模板方法，controller 依赖接口，测试直接给接口桩即可
+    private final RestApiContributor scanner = List::of;
 
     @Test
     void apisReturnsGroupedCatalogWithEmptyDefaults() {

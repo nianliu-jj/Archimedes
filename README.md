@@ -58,6 +58,8 @@
 | `archimedes-spring-boot-2-starter` | 2.7.x | javax | 8 |
 | `archimedes-spring-boot-3-starter` | 3.x | jakarta | 17 |
 
+Web 栈支持：Servlet（spring-webmvc）与 Reactive（spring-webflux）双栈。WebFlux 宿主下自动装配响应式 REST 扫描器，`/archimedes/apis` 与内置 UI 同等可用（含 `Mono`/`Flux` 返回类型签名）；RPC 四协议扫描（容器自省、与 Web 栈无关）同等生效。**边界**：链路追踪与日志采集查询当前仅 Servlet 栈——响应式请求跨事件循环线程，需要 Reactor Context 传播方案，后续版本支持。
+
 ## 配置
 
 ```yaml

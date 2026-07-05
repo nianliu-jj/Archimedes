@@ -1,4 +1,5 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
 io.github.nianliu.archimedes.boot2.ArchimedesAutoConfiguration,\
+io.github.nianliu.archimedes.boot2.ArchimedesReactiveAutoConfiguration,\
 io.github.nianliu.archimedes.boot2.ArchimedesTraceAutoConfiguration,\
 io.github.nianliu.archimedes.boot2.ArchimedesLogAutoConfiguration
