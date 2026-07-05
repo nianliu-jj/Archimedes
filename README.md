@@ -1,6 +1,6 @@
 # Archimedes
 
-引入即用的 Spring Boot API 可观测性依赖：自动扫描宿主应用的接口契约（当前支持 REST 与 WebSocket，后续将支持 Dubbo / gRPC / SOFARPC-TR / tRPC），通过内置端点与 UI 页面展示。
+引入即用的 Spring Boot API 可观测性依赖：自动扫描宿主应用的接口契约（REST / WebSocket / Dubbo / gRPC / SOFARPC-TR / tRPC 全形态），内置端点与 UI 展示，并提供全链路 traceId 追踪、跨线程 MDC 传递与按 traceId 的日志采集查询。
 
 ## 已支持的接口契约
 
@@ -11,8 +11,10 @@
   - STOMP：握手端点、`@MessageMapping`、`@SubscribeMapping` 目的地
 - **RPC — Dubbo**（宿主未使用 Dubbo 时零影响）：扫描 provider `ServiceBean`（覆盖 `@DubboService` 注解与 XML 注册），提取接口全限定名、version、group 与方法签名（入参/返回类型），Dubbo 2.7 与 3.x 兼容
 - **RPC — gRPC**（宿主未使用 gRPC 时零影响）：扫描 `BindableService` Bean（`@GrpcService` 等主流集成通吃），提取服务名、方法、streaming 形态与消息类型；无需注册 Server Reflection 或启动 gRPC Server
+- **TR — SOFARPC**（零 SOFA 编译依赖，反射式）：扫描 `@SofaService` Bean，提取接口、方法签名、uniqueId 与 bindings（binding 类型含 tr/bolt 等）
+- **TR — 腾讯 tRPC**（零 tRPC 编译依赖，反射式）：扫描 `@TRpcService` Bean，提取接口、方法签名与 name/version/group；注解 FQCN 按开源 tRPC-Java 假设，不匹配的宿主中自动不装配
 
-`GET {base-path}/apis` 返回分组结构：`{"restApis": [...], "webSocketApis": [...], "rpcApis": [...]}`（协议不存在时为空数组；gRPC / SOFARPC-TR / tRPC 后续同样并入 `rpcApis`，以 `protocol` 字段区分）。
+`GET {base-path}/apis` 返回分组结构：`{"restApis": [...], "webSocketApis": [...], "rpcApis": [...]}`（协议不存在时为空数组；四类 RPC 协议共用 `rpcApis`，以 `protocol` 字段区分：DUBBO / GRPC / SOFA_TR / TRPC）。
 
 ## 模块结构
 

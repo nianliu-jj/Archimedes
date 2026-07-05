@@ -5,6 +5,8 @@ import io.github.nianliu.archimedes.scanner.RestApiScanner;
 import io.github.nianliu.archimedes.scanner.rpc.DubboRpcScanner;
 import io.github.nianliu.archimedes.scanner.rpc.GrpcRpcScanner;
 import io.github.nianliu.archimedes.scanner.rpc.RpcApiContributor;
+import io.github.nianliu.archimedes.scanner.rpc.SofaTrRpcScanner;
+import io.github.nianliu.archimedes.scanner.rpc.TrpcRpcScanner;
 import io.github.nianliu.archimedes.scanner.ws.SpringWebSocketHandlerScanner;
 import io.github.nianliu.archimedes.scanner.ws.StompMappingScanner;
 import io.github.nianliu.archimedes.scanner.ws.WebSocketApiContributor;
@@ -106,6 +108,28 @@ public class ArchimedesAutoConfiguration {
         @Bean
         public GrpcRpcScanner archimedesGrpcRpcScanner(ApplicationContext applicationContext) {
             return new GrpcRpcScanner(applicationContext);
+        }
+    }
+
+    /** 宿主存在 SOFABoot（@SofaService）时装配 SOFARPC 服务扫描（字符串条件，零 SOFA 编译依赖）。 */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = SofaTrRpcScanner.ANNOTATION)
+    static class SofaTrScanConfiguration {
+
+        @Bean
+        public SofaTrRpcScanner archimedesSofaTrRpcScanner(ApplicationContext applicationContext) {
+            return new SofaTrRpcScanner(applicationContext);
+        }
+    }
+
+    /** 宿主存在 tRPC（@TRpcService）时装配 tRPC 服务扫描（字符串条件，零 tRPC 编译依赖）。 */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = TrpcRpcScanner.ANNOTATION)
+    static class TrpcScanConfiguration {
+
+        @Bean
+        public TrpcRpcScanner archimedesTrpcRpcScanner(ApplicationContext applicationContext) {
+            return new TrpcRpcScanner(applicationContext);
         }
     }
 }
