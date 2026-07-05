@@ -1,6 +1,16 @@
 # Archimedes
 
-引入即用的 Spring Boot API 可观测性依赖：自动扫描宿主应用的接口契约（当前支持 REST，后续将支持 WebSocket / Dubbo / gRPC / SOFARPC-TR / tRPC），通过内置端点与 UI 页面展示。
+引入即用的 Spring Boot API 可观测性依赖：自动扫描宿主应用的接口契约（当前支持 REST 与 WebSocket，后续将支持 Dubbo / gRPC / SOFARPC-TR / tRPC），通过内置端点与 UI 页面展示。
+
+## 已支持的接口契约
+
+- **REST**：`@RestController` 的路径、HTTP 方法、参数（含来源与 required）、返回类型、consumes/produces、`@Deprecated` 标记
+- **WebSocket**（三种形态，宿主未使用 WebSocket 时零影响）：
+  - `@ServerEndpoint` 注解端点（SB2=javax / SB3=jakarta；须注册为 Spring Bean，容器 SCI 直接注册的端点不在覆盖内）
+  - `WebSocketConfigurer` 注册的 handler（含 SockJS 标记）
+  - STOMP：握手端点、`@MessageMapping`、`@SubscribeMapping` 目的地
+
+`GET {base-path}/apis` 返回分组结构：`{"restApis": [...], "webSocketApis": [...]}`（协议不存在时为空数组，后续协议按新增字段扩展）。
 
 ## 模块结构
 

@@ -33,9 +33,14 @@ class EndToEndTest {
         ResponseEntity<String> resp = rest.getForEntity("/archimedes/apis", String.class);
         assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
 
-        List<Map<String, Object>> apis = mapper.readValue(resp.getBody(),
-                new TypeReference<List<Map<String, Object>>>() {
+        // 分组结构：无 WebSocket 端点时 webSocketApis 为空数组而非缺失
+        Map<String, Object> catalog = mapper.readValue(resp.getBody(),
+                new TypeReference<Map<String, Object>>() {
                 });
+        assertThat(catalog).containsKeys("restApis", "webSocketApis");
+        assertThat((List<?>) catalog.get("webSocketApis")).isEmpty();
+
+        List<Map<String, Object>> apis = restApis(resp.getBody());
 
         // 用户接口在列
         assertThat(apis).anySatisfy(api ->
@@ -50,9 +55,7 @@ class EndToEndTest {
     @Test
     void demoEndpointParamIsScanned() throws Exception {
         ResponseEntity<String> resp = rest.getForEntity("/archimedes/apis", String.class);
-        List<Map<String, Object>> apis = mapper.readValue(resp.getBody(),
-                new TypeReference<List<Map<String, Object>>>() {
-                });
+        List<Map<String, Object>> apis = restApis(resp.getBody());
 
         Map<String, Object> hello = apis.stream()
                 .filter(a -> ((List<String>) a.get("paths")).contains("/demo/hello"))
@@ -72,6 +75,12 @@ class EndToEndTest {
         assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(resp.getBody()).contains("/archimedes/apis");
         assertThat(resp.getBody()).doesNotContain("__ARCHIMEDES_API_URL__");
+    }
+
+    private List<Map<String, Object>> restApis(String body) throws Exception {
+        Map<String, Object> catalog = mapper.readValue(body, new TypeReference<Map<String, Object>>() {
+        });
+        return (List<Map<String, Object>>) catalog.get("restApis");
     }
 
     @EnableAutoConfiguration

@@ -1,8 +1,10 @@
 package io.github.nianliu.archimedes.web;
 
 import io.github.nianliu.archimedes.config.ArchimedesApiProperties;
-import io.github.nianliu.archimedes.model.ApiInfo;
+import io.github.nianliu.archimedes.model.ApiCatalog;
+import io.github.nianliu.archimedes.model.WsApiInfo;
 import io.github.nianliu.archimedes.scanner.RestApiScanner;
+import io.github.nianliu.archimedes.scanner.ws.WebSocketApiContributor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -24,16 +28,29 @@ public class ArchimedesApiController {
 
     private final RestApiScanner scanner;
     private final ArchimedesApiProperties properties;
+    private final List<WebSocketApiContributor> webSocketContributors;
     private final AtomicReference<String> renderedUi = new AtomicReference<>();
 
     public ArchimedesApiController(RestApiScanner scanner, ArchimedesApiProperties properties) {
+        this(scanner, properties, Collections.<WebSocketApiContributor>emptyList());
+    }
+
+    public ArchimedesApiController(RestApiScanner scanner, ArchimedesApiProperties properties,
+                                   List<WebSocketApiContributor> webSocketContributors) {
         this.scanner = scanner;
         this.properties = properties;
+        this.webSocketContributors = webSocketContributors == null
+                ? Collections.<WebSocketApiContributor>emptyList()
+                : webSocketContributors;
     }
 
     @GetMapping(value = "${archimedes.api.base-path:" + ArchimedesApiProperties.DEFAULT_BASE_PATH + "}/apis", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<ApiInfo> apis() {
-        return scanner.scan();
+    public ApiCatalog apis() {
+        List<WsApiInfo> webSocketApis = new ArrayList<>();
+        for (WebSocketApiContributor contributor : webSocketContributors) {
+            webSocketApis.addAll(contributor.contribute());
+        }
+        return new ApiCatalog(scanner.scan(), webSocketApis);
     }
 
     @GetMapping(value = "${archimedes.api.base-path:" + ArchimedesApiProperties.DEFAULT_BASE_PATH + "}", produces = MediaType.TEXT_HTML_VALUE)
