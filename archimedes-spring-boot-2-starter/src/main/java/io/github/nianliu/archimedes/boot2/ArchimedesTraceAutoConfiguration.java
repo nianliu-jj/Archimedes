@@ -5,17 +5,24 @@ import io.github.nianliu.archimedes.trace.TraceIdGenerator;
 import io.github.nianliu.archimedes.trace.TraceIdResolver;
 import io.github.nianliu.archimedes.trace.TraceProperties;
 import io.github.nianliu.archimedes.trace.UuidTraceIdGenerator;
+import io.github.nianliu.archimedes.trace.propagation.AsyncCoverageAdvisor;
+import io.github.nianliu.archimedes.trace.propagation.MdcExecutorBeanPostProcessor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.core.env.Environment;
 
 import javax.servlet.DispatcherType;
+import java.util.Collections;
+import java.util.List;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -47,5 +54,23 @@ public class ArchimedesTraceAutoConfiguration {
         registration.addUrlPatterns("/*");
         registration.setName("archimedesTraceIdFilter");
         return registration;
+    }
+
+    /**
+     * static + Environment/Binder 取配置：BPP 必须早注册，不能连带拉起 @ConfigurationProperties 绑定链。
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "archimedes.trace.propagation", name = "enabled", matchIfMissing = true)
+    public static MdcExecutorBeanPostProcessor archimedesMdcExecutorBeanPostProcessor(Environment environment) {
+        List<String> excludeBeans = Binder.get(environment)
+                .bind("archimedes.trace.propagation.exclude-beans", Bindable.listOf(String.class))
+                .orElseGet(Collections::emptyList);
+        return new MdcExecutorBeanPostProcessor(excludeBeans);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "archimedes.trace.propagation", name = "enabled", matchIfMissing = true)
+    public AsyncCoverageAdvisor archimedesAsyncCoverageAdvisor() {
+        return new AsyncCoverageAdvisor();
     }
 }

@@ -80,6 +80,24 @@ archimedes:
 - **自定义生成算法**：注册自己的 `TraceIdGenerator` Bean（如雪花算法）即可替换默认 UUID（`@ConditionalOnMissingBean` 让位）
 - **精准清理**：请求结束只回滚本请求写入的 MDC 键并恢复旧值，绝不 `MDC.clear()`，宿主自有 MDC 上下文零破坏
 
+## 跨线程 traceId 传递
+
+Spring 容器管理的线程池**引入即用自动覆盖**（可用 `archimedes.trace.propagation.enabled=false` 关闭）：
+
+- `ThreadPoolTaskExecutor` Bean（含 `@Async` 线程池）：自动注入 `MdcTaskDecorator`，Bean 类型不变，已有 decorator 自动组合
+- `ExecutorService` / `ScheduledExecutorService` / `Executor` 接口 Bean：自动替换为同接口的 MDC 传递包装器（若宿主按具体实现类注入，可用 `archimedes.trace.propagation.exclude-beans` 排除）
+- `TaskScheduler` 形态（`@Scheduled` 定时任务）不包装——定时任务不源于请求上下文
+
+**自动化盲区**（物理上需 javaagent 才能自动覆盖，本项目提供一行式手动包装）：
+
+```java
+// CompletableFuture 默认 commonPool、自建裸线程池等场景
+CompletableFuture.supplyAsync(MdcWrappers.wrap(() -> doWork()));
+executor.submit(MdcWrappers.wrap(runnable));
+```
+
+注意：若宿主定义了任意 `Executor` Bean（例如启用 STOMP 后其内部通道执行器），Spring Boot 的 `applicationTaskExecutor` 会退避，`@Async` 退化为非容器管理的 `SimpleAsyncTaskExecutor`（无法自动传递）。Archimedes 启动时会检测该场景并打 WARN——按提示定义名为 `taskExecutor` 的 Bean 即可回到覆盖范围。
+
 ## 构建与示例
 
 ```bash

@@ -2,6 +2,9 @@ package io.github.nianliu.archimedes.trace;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @ConfigurationProperties(prefix = "archimedes.trace")
 public class TraceProperties {
 
@@ -22,6 +25,38 @@ public class TraceProperties {
 
     /** spanId 在 MDC 中的 key。 */
     private String spanIdKey = "spanId";
+
+    /** 跨线程传递配置。 */
+    private final Propagation propagation = new Propagation();
+
+    public Propagation getPropagation() {
+        return propagation;
+    }
+
+    public static class Propagation {
+
+        /** 跨线程自动传递开关；false 时不包装任何 Executor Bean。 */
+        private boolean enabled = true;
+
+        /** 按 Bean 名排除，不参与自动包装（注入具体实现类的宿主代码的逃生口）。 */
+        private List<String> excludeBeans = new ArrayList<>();
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public List<String> getExcludeBeans() {
+            return excludeBeans;
+        }
+
+        public void setExcludeBeans(List<String> excludeBeans) {
+            this.excludeBeans = excludeBeans;
+        }
+    }
 
     public boolean isEnabled() {
         return enabled;
