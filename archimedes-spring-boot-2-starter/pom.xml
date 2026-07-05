@@ -55,7 +55,12 @@
             <artifactId>spring-messaging</artifactId>
             <optional>true</optional>
         </dependency>
-        <!-- SB2 世界的 websocket API：artifact 名为 jakarta.websocket-api 但 1.x 版本仍是 javax.websocket 包名 -->
+        <!-- SB2 世界的 servlet/websocket API：artifact 名为 jakarta.* 但 4.x/1.x 版本仍是 javax.* 包名 -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>jakarta.websocket</groupId>
             <artifactId>jakarta.websocket-api</artifactId>

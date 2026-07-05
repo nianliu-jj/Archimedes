@@ -59,11 +59,26 @@
 ```yaml
 archimedes:
   api:
-    enabled: true          # 总开关，false 时不注册任何 Bean
+    enabled: true          # API 展示总开关，false 时不注册任何相关 Bean
     base-path: /archimedes # 端点根路径
     ui-enabled: true       # 是否挂载内置 UI
     base-packages: []      # 非空时只扫描这些包前缀下的 Controller
+  trace:
+    enabled: true              # 链路追踪总开关，false 时不注册 Filter 与相关 Bean
+    header-name: X-Trace-Id    # 透传/回写 traceId 的请求头
+    response-header: true      # 是否在响应头回写 traceId
+    mdc-key: traceId           # traceId 在 MDC 中的 key
+    span-id-key: spanId        # spanId 在 MDC 中的 key
+    use-project-trace-id: false # true=信任宿主自有 Filter 已写入的 MDC traceId（不覆盖不清理）
 ```
+
+## 链路追踪（traceId）
+
+引入 starter 后每个 HTTP 请求自动建立 trace 上下文：
+
+- **解析优先级**：用户 `TraceIdResolver` Bean → 请求头（`header-name`）→ 宿主 MDC（需 `use-project-trace-id=true`）→ `TraceIdGenerator` 生成
+- **自定义生成算法**：注册自己的 `TraceIdGenerator` Bean（如雪花算法）即可替换默认 UUID（`@ConditionalOnMissingBean` 让位）
+- **精准清理**：请求结束只回滚本请求写入的 MDC 键并恢复旧值，绝不 `MDC.clear()`，宿主自有 MDC 上下文零破坏
 
 ## 构建与示例
 
