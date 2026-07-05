@@ -41,8 +41,9 @@ class EndToEndTest {
         Map<String, Object> catalog = mapper.readValue(resp.getBody(),
                 new TypeReference<Map<String, Object>>() {
                 });
-        assertThat(catalog).containsKeys("restApis", "webSocketApis");
+        assertThat(catalog).containsKeys("restApis", "webSocketApis", "rpcApis");
         assertThat((List<?>) catalog.get("webSocketApis")).isEmpty();
+        assertThat((List<?>) catalog.get("rpcApis")).isEmpty();
 
         List<Map<String, Object>> apis = restApis(resp.getBody());
 

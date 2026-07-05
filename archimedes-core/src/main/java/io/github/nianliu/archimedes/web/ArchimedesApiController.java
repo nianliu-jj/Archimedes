@@ -2,8 +2,10 @@ package io.github.nianliu.archimedes.web;
 
 import io.github.nianliu.archimedes.config.ArchimedesApiProperties;
 import io.github.nianliu.archimedes.model.ApiCatalog;
+import io.github.nianliu.archimedes.model.RpcApiInfo;
 import io.github.nianliu.archimedes.model.WsApiInfo;
 import io.github.nianliu.archimedes.scanner.RestApiScanner;
+import io.github.nianliu.archimedes.scanner.rpc.RpcApiContributor;
 import io.github.nianliu.archimedes.scanner.ws.WebSocketApiContributor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
@@ -29,19 +31,30 @@ public class ArchimedesApiController {
     private final RestApiScanner scanner;
     private final ArchimedesApiProperties properties;
     private final List<WebSocketApiContributor> webSocketContributors;
+    private final List<RpcApiContributor> rpcContributors;
     private final AtomicReference<String> renderedUi = new AtomicReference<>();
 
     public ArchimedesApiController(RestApiScanner scanner, ArchimedesApiProperties properties) {
-        this(scanner, properties, Collections.<WebSocketApiContributor>emptyList());
+        this(scanner, properties, Collections.<WebSocketApiContributor>emptyList(),
+                Collections.<RpcApiContributor>emptyList());
     }
 
     public ArchimedesApiController(RestApiScanner scanner, ArchimedesApiProperties properties,
                                    List<WebSocketApiContributor> webSocketContributors) {
+        this(scanner, properties, webSocketContributors, Collections.<RpcApiContributor>emptyList());
+    }
+
+    public ArchimedesApiController(RestApiScanner scanner, ArchimedesApiProperties properties,
+                                   List<WebSocketApiContributor> webSocketContributors,
+                                   List<RpcApiContributor> rpcContributors) {
         this.scanner = scanner;
         this.properties = properties;
         this.webSocketContributors = webSocketContributors == null
                 ? Collections.<WebSocketApiContributor>emptyList()
                 : webSocketContributors;
+        this.rpcContributors = rpcContributors == null
+                ? Collections.<RpcApiContributor>emptyList()
+                : rpcContributors;
     }
 
     @GetMapping(value = "${archimedes.api.base-path:" + ArchimedesApiProperties.DEFAULT_BASE_PATH + "}/apis", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -50,7 +63,11 @@ public class ArchimedesApiController {
         for (WebSocketApiContributor contributor : webSocketContributors) {
             webSocketApis.addAll(contributor.contribute());
         }
-        return new ApiCatalog(scanner.scan(), webSocketApis);
+        List<RpcApiInfo> rpcApis = new ArrayList<>();
+        for (RpcApiContributor contributor : rpcContributors) {
+            rpcApis.addAll(contributor.contribute());
+        }
+        return new ApiCatalog(scanner.scan(), webSocketApis, rpcApis);
     }
 
     @GetMapping(value = "${archimedes.api.base-path:" + ArchimedesApiProperties.DEFAULT_BASE_PATH + "}", produces = MediaType.TEXT_HTML_VALUE)

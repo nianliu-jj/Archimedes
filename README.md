@@ -9,8 +9,9 @@
   - `@ServerEndpoint` 注解端点（SB2=javax / SB3=jakarta；须注册为 Spring Bean，容器 SCI 直接注册的端点不在覆盖内）
   - `WebSocketConfigurer` 注册的 handler（含 SockJS 标记）
   - STOMP：握手端点、`@MessageMapping`、`@SubscribeMapping` 目的地
+- **RPC — Dubbo**（宿主未使用 Dubbo 时零影响）：扫描 provider `ServiceBean`（覆盖 `@DubboService` 注解与 XML 注册），提取接口全限定名、version、group 与方法签名（入参/返回类型），Dubbo 2.7 与 3.x 兼容
 
-`GET {base-path}/apis` 返回分组结构：`{"restApis": [...], "webSocketApis": [...]}`（协议不存在时为空数组，后续协议按新增字段扩展）。
+`GET {base-path}/apis` 返回分组结构：`{"restApis": [...], "webSocketApis": [...], "rpcApis": [...]}`（协议不存在时为空数组；gRPC / SOFARPC-TR / tRPC 后续同样并入 `rpcApis`，以 `protocol` 字段区分）。
 
 ## 模块结构
 

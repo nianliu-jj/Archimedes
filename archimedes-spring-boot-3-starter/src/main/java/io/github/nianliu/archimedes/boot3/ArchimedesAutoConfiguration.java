@@ -2,10 +2,13 @@ package io.github.nianliu.archimedes.boot3;
 
 import io.github.nianliu.archimedes.config.ArchimedesApiProperties;
 import io.github.nianliu.archimedes.scanner.RestApiScanner;
+import io.github.nianliu.archimedes.scanner.rpc.DubboRpcScanner;
+import io.github.nianliu.archimedes.scanner.rpc.RpcApiContributor;
 import io.github.nianliu.archimedes.scanner.ws.SpringWebSocketHandlerScanner;
 import io.github.nianliu.archimedes.scanner.ws.StompMappingScanner;
 import io.github.nianliu.archimedes.scanner.ws.WebSocketApiContributor;
 import io.github.nianliu.archimedes.web.ArchimedesApiController;
+import org.apache.dubbo.config.spring.ServiceBean;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -39,9 +42,11 @@ public class ArchimedesAutoConfiguration {
     @Bean
     public ArchimedesApiController archimedesApiController(RestApiScanner scanner,
                                                            ArchimedesApiProperties properties,
-                                                           ObjectProvider<WebSocketApiContributor> contributors) {
+                                                           ObjectProvider<WebSocketApiContributor> contributors,
+                                                           ObjectProvider<RpcApiContributor> rpcContributors) {
         return new ArchimedesApiController(scanner, properties,
-                contributors.orderedStream().collect(Collectors.toList()));
+                contributors.orderedStream().collect(Collectors.toList()),
+                rpcContributors.orderedStream().collect(Collectors.toList()));
     }
 
     /** 宿主存在 spring-websocket 时装配 handler 端点扫描（含 STOMP 握手端点识别）。 */
@@ -78,6 +83,17 @@ public class ArchimedesAutoConfiguration {
         @Bean
         public Boot3ServerEndpointScanner archimedesServerEndpointScanner(ApplicationContext applicationContext) {
             return new Boot3ServerEndpointScanner(applicationContext);
+        }
+    }
+
+    /** 宿主存在 Dubbo 时装配 provider 服务扫描。 */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(ServiceBean.class)
+    static class DubboScanConfiguration {
+
+        @Bean
+        public DubboRpcScanner archimedesDubboRpcScanner(ApplicationContext applicationContext) {
+            return new DubboRpcScanner(applicationContext);
         }
     }
 }

@@ -39,6 +39,14 @@
     <tbody id="wsRows"></tbody>
 </table>
 
+<h2>RPC APIs<span class="count" id="rpcCount"></span></h2>
+<table>
+    <thead>
+    <tr><th>Protocol</th><th>Service</th><th>Version / Group</th><th>Methods</th></tr>
+    </thead>
+    <tbody id="rpcRows"></tbody>
+</table>
+
 <h2>Trace Logs</h2>
 <div>
     <input id="traceIdInput" placeholder="enter traceId to query logs..." style="padding:8px;width:320px;font-size:14px;">
@@ -54,7 +62,7 @@
 
 <script>
     var API_URL = "__ARCHIMEDES_API_URL__";
-    var catalog = { restApis: [], webSocketApis: [] };
+    var catalog = { restApis: [], webSocketApis: [], rpcApis: [] };
 
     function esc(s) {
         return String(s).replace(/[&<>]/g, function (c) {
@@ -108,10 +116,41 @@
             }).join('');
     }
 
+    function simpleName(fqcn) {
+        return String(fqcn).split('.').pop();
+    }
+
+    function methodText(m) {
+        return m.methodName + '(' + m.parameterTypes.map(simpleName).join(', ') + ') : ' + simpleName(m.returnType);
+    }
+
+    function renderRpc(q) {
+        var all = catalog.rpcApis || [];
+        var rows = all.filter(function (r) {
+            var hay = (r.protocol + ' ' + r.serviceName + ' ' + (r.version || '') + ' ' + (r.group || '')).toLowerCase();
+            return hay.indexOf(q) >= 0;
+        });
+        document.getElementById('rpcCount').textContent = ' (' + rows.length + '/' + all.length + ')';
+        document.getElementById('rpcRows').innerHTML = rows.length === 0
+            ? '<tr><td colspan="4" class="empty">no RPC services</td></tr>'
+            : rows.map(function (r) {
+                var vg = [r.version, r.group].filter(Boolean).join(' / ');
+                return '<tr>'
+                    + '<td><span class="kind">' + esc(r.protocol) + '</span></td>'
+                    + '<td title="' + esc(r.serviceName) + '"><code>' + esc(r.serviceName) + '</code></td>'
+                    + '<td>' + esc(vg) + '</td>'
+                    + '<td>' + r.methods.map(function (m) {
+                        return '<code>' + esc(methodText(m)) + '</code>';
+                    }).join('<br>') + '</td>'
+                    + '</tr>';
+            }).join('');
+    }
+
     function render() {
         var q = document.getElementById('q').value.toLowerCase();
         renderRest(q);
         renderWs(q);
+        renderRpc(q);
     }
 
     var BASE_URL = API_URL.replace(/\/apis$/, '');
