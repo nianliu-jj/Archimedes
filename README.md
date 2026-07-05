@@ -108,6 +108,22 @@ logback 环境下**引入即用**：结构化采集 Appender 编程式挂载 roo
 
 存储默认为内存有界实现（重启即失）：全局上限 `archimedes.log.capture.max-entries`（默认 10000）、单链路上限 `max-entries-per-trace`（默认 500），超限按最老链路整体淘汰。生产持久化（如 Elasticsearch）通过注册自定义 `LogStore` Bean 接入，内存实现自动让位（`@ConditionalOnMissingBean`）。`archimedes.log.capture.enabled=false` 可整体关闭。
 
+## 日志配置兜底
+
+宿主 **没有任何 logback 配置**（无 `logback-spring.xml`/`logback.xml` 等且未设 `logging.config`）时，Archimedes 在日志系统初始化前注入内置配置：控制台 + 滚动文件双输出，pattern 含 `[traceId] [spanId]`。宿主有任何自有配置时**完全不介入**。
+
+```yaml
+archimedes:
+  log:
+    fallback-enabled: true   # 兜底总开关（false 时行为与未引入 Archimedes 一致）
+    pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:-}] [%X{spanId:-}] %-5level %logger{36} - %msg%n"
+    path: ./logs             # 滚动文件目录
+    max-history: 30          # 保留天数
+    max-file-size: 100MB     # 单文件大小
+```
+
+修改 pattern 不影响按 traceId 查询——采集是结构化的，与输出格式解耦。
+
 ## 构建与示例
 
 ```bash

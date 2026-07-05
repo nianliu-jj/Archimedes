@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- sb2 测试模块的"宿主自有配置"样张：存在即应让 Archimedes 兜底注入完全退避。 -->
+<configuration>
+    <appender name="USER_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{20} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="USER_CONSOLE"/>
+    </root>
+</configuration>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Archimedes 内置兜底日志配置：仅当宿主无任何 logback 配置时经 logging.config 注入生效。
+     刻意不命名为 logback-spring.xml，避免被宿主的约定发现机制误拾取。 -->
+<configuration>
+
+    <springProperty scope="context" name="ARCHIMEDES_LOG_PATTERN" source="archimedes.log.pattern"
+                    defaultValue="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:-}] [%X{spanId:-}] %-5level %logger{36} - %msg%n"/>
+    <springProperty scope="context" name="ARCHIMEDES_LOG_PATH" source="archimedes.log.path"
+                    defaultValue="./logs"/>
+    <springProperty scope="context" name="ARCHIMEDES_LOG_MAX_HISTORY" source="archimedes.log.max-history"
+                    defaultValue="30"/>
+    <springProperty scope="context" name="ARCHIMEDES_LOG_MAX_FILE_SIZE" source="archimedes.log.max-file-size"
+                    defaultValue="100MB"/>
+
+    <appender name="ARCHIMEDES_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${ARCHIMEDES_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="ARCHIMEDES_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${ARCHIMEDES_LOG_PATH}/application.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${ARCHIMEDES_LOG_PATH}/application.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxHistory>${ARCHIMEDES_LOG_MAX_HISTORY}</maxHistory>
+            <maxFileSize>${ARCHIMEDES_LOG_MAX_FILE_SIZE}</maxFileSize>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${ARCHIMEDES_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="ARCHIMEDES_CONSOLE"/>
+        <appender-ref ref="ARCHIMEDES_FILE"/>
+    </root>
+</configuration>
