@@ -5,12 +5,22 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-/** ScheduledExecutorService 委托包装器。经 MdcWrappers.wrap(ScheduledExecutorService) 创建。 */
+/**
+ * ScheduledExecutorService 委托包装器。经 MdcWrappers.wrap(ScheduledExecutorService) 创建。
+ *
+ * <p>设计要点：继承 {@link MdcExecutorService} 复用其对 execute/submit 等方法的包装，
+ * 仅额外覆写四个 schedule 系列方法，为定时/周期任务补上 MDC 传递。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-06
+ */
 class MdcScheduledExecutorService extends MdcExecutorService implements ScheduledExecutorService {
 
+    /** 被包装的原始 ScheduledExecutorService，用于 schedule 系列方法委托。 */
     private final ScheduledExecutorService delegate;
 
     MdcScheduledExecutorService(ScheduledExecutorService delegate) {
+        // 父类持有同一 delegate 以复用非调度类方法的包装逻辑
         super(delegate);
         this.delegate = delegate;
     }

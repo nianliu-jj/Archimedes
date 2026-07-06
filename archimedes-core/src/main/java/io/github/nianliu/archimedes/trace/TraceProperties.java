@@ -5,6 +5,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * trace 模块的配置项，绑定前缀 {@code archimedes.trace}。
+ *
+ * <p>设计要点：集中承载 traceId 的解析、透传、MDC 写入以及跨线程传递等开关与参数，
+ * 使宿主项目可通过配置文件按需裁剪能力，而无需改动代码。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-06
+ */
 @ConfigurationProperties(prefix = "archimedes.trace")
 public class TraceProperties {
 

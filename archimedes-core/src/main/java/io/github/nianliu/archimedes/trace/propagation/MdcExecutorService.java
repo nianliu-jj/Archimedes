@@ -9,9 +9,18 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/** ExecutorService 委托包装器：全部提交方法均快照 MDC。经 MdcWrappers.wrap(ExecutorService) 创建。 */
+/**
+ * ExecutorService 委托包装器：全部提交方法均快照 MDC。经 MdcWrappers.wrap(ExecutorService) 创建。
+ *
+ * <p>设计要点：逐一覆写所有会「提交任务」的方法（execute/submit/invokeAll/invokeAny）并插入
+ * MDC 包装，而生命周期管理方法（shutdown/isTerminated 等）纯透明委托，不做任何干预。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-06
+ */
 class MdcExecutorService implements ExecutorService {
 
+    /** 被包装的原始 ExecutorService，所有调用最终委托给它。 */
     private final ExecutorService delegate;
 
     MdcExecutorService(ExecutorService delegate) {
@@ -40,6 +49,7 @@ class MdcExecutorService implements ExecutorService {
 
     @Override
     public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException {
+        // 批量提交需逐一包装，wrapAll 内部对每个任务分别快照当前 MDC
         return delegate.invokeAll(MdcWrappers.wrapAll(tasks));
     }
 
@@ -59,6 +69,8 @@ class MdcExecutorService implements ExecutorService {
             throws InterruptedException, ExecutionException, TimeoutException {
         return delegate.invokeAny(MdcWrappers.wrapAll(tasks), timeout, unit);
     }
+
+    // 以下为生命周期管理方法，与 MDC 无关，纯透明委托给原始 delegate
 
     @Override
     public void shutdown() {
