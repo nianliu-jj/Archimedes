@@ -28,23 +28,30 @@ import java.util.stream.Collectors;
  * @author nianliu-jj
  * @since 2026-07-05
  */
+// afterName：在 WebFluxAutoConfiguration 之后装配，确保响应式 RequestMappingHandlerMapping 已就绪
 @AutoConfiguration(afterName = "org.springframework.boot.autoconfigure.web.reactive.WebFluxAutoConfiguration")
+// 仅在 REACTIVE 型 Web 应用生效，与 SERVLET 分支互斥
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.REACTIVE)
+// 注意：此处的 RequestMappingHandlerMapping 是 web.reactive 包下的，据此判定当前为 WebFlux 栈
 @ConditionalOnClass(RequestMappingHandlerMapping.class)
+// 允许通过 archimedes.api.enabled=false 全局关闭；缺省视为开启
 @ConditionalOnProperty(prefix = "archimedes.api", name = "enabled", matchIfMissing = true)
 @EnableConfigurationProperties(ArchimedesApiProperties.class)
+// 复用与 SERVLET 分支相同的 RPC 四协议扫描子配置（栈无关）
 @Import({RpcScanConfigurations.DubboScanConfiguration.class,
         RpcScanConfigurations.GrpcScanConfiguration.class,
         RpcScanConfigurations.SofaTrScanConfiguration.class,
         RpcScanConfigurations.TrpcScanConfiguration.class})
 public class ArchimedesReactiveAutoConfiguration {
 
+    /** 响应式 REST 契约扫描器：注入 WebFlux 的 RequestMappingHandlerMapping，自省响应式端点契约。 */
     @Bean
     public ReactiveRestApiScanner archimedesReactiveRestApiScanner(
             List<RequestMappingHandlerMapping> handlerMappings, ArchimedesApiProperties properties) {
         return new ReactiveRestApiScanner(handlerMappings, properties);
     }
 
+    /** 内置 API 控制器：与 SERVLET 分支同一个纯注解式控制器，仅 REST 扫描器换成响应式实现；RPC 贡献者按序收集、可空。 */
     @Bean
     public ArchimedesApiController archimedesApiController(ReactiveRestApiScanner scanner,
                                                            ArchimedesApiProperties properties,
