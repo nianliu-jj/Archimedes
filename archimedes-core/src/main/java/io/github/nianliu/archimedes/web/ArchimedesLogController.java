@@ -14,7 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** 链路日志查询端点（自身路径天然被 REST 扫描的 base-path 排除规则覆盖）。 */
+/**
+ * 链路日志查询端点：按 traceId 分页查询该链路上全部日志（含跨线程），
+ * 以及返回当前请求的 traceId。
+ * <p>路径位于 {@code {base-path}/logs/trace/...} 与 {@code {base-path}/trace/current}，
+ * 天然被 REST 扫描的 base-path 排除规则覆盖，不会出现在契约结果中。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-06
+ */
 @RestController
 public class ArchimedesLogController {
 
@@ -26,6 +34,7 @@ public class ArchimedesLogController {
         this.traceProperties = traceProperties;
     }
 
+    /** 按 traceId 查询链路日志：时间升序分页返回，含线程/级别/logger/spanId。 */
     @GetMapping(value = "${archimedes.api.base-path:" + ArchimedesApiProperties.DEFAULT_BASE_PATH + "}/logs/trace/{traceId}",
             produces = MediaType.APPLICATION_JSON_VALUE)
     public LogQueryResult queryByTraceId(@PathVariable String traceId,
@@ -34,6 +43,7 @@ public class ArchimedesLogController {
         return logStore.queryByTraceId(traceId, page, size);
     }
 
+    /** 返回当前请求的 traceId（前端可用此端点获取 traceId 做联动查询）。 */
     @GetMapping(value = "${archimedes.api.base-path:" + ArchimedesApiProperties.DEFAULT_BASE_PATH + "}/trace/current",
             produces = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, String> currentTraceId() {
