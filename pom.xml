@@ -15,6 +15,7 @@
         <module>archimedes-spring-boot-3-starter</module>
         <module>example</module>
         <module>example-boot2</module>
+        <module>example-all</module>
     </modules>
 
     <properties>

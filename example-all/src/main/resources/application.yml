@@ -1,0 +1,22 @@
+# 全功能测试应用配置。
+# 注意：本应用刻意【不配置任何 archimedes.* 项】且【不放置任何 logback 配置文件】，
+# 用于验证"引入即用"默认行为与 logback 兜底注入；可配项清单见 README「配置」一节。
+
+server:
+  # 独立端口，避免与 example(8080)/example-boot2(8081) 冲突
+  port: 8082
+
+spring:
+  application:
+    name: archimedes-example-all
+
+# Dubbo provider：registry N/A = 不连注册中心、仅本地导出（契约扫描只需 ServiceBean 存在）
+dubbo:
+  application:
+    name: archimedes-example-all
+    qos-enable: false        # 关闭 QoS 端口，避免测试/多实例端口冲突
+  registry:
+    address: N/A
+  protocol:
+    name: dubbo
+    port: -1                 # 随机协议端口
