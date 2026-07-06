@@ -5,6 +5,7 @@
 ## 已支持的接口契约
 
 - **REST**：`@RestController` 的路径、HTTP 方法、参数（含来源与 required）、返回类型、consumes/produces、`@Deprecated` 标记
+- **请求/响应体结构**：`@RequestBody` 参数类型与返回类型自动解析为字段树（字段名/类型/必填/说明/嵌套），解包 `ResponseEntity`/`Mono`/`Flux`/集合等包装；字段与参数说明反射读取 Swagger v3 `@Schema`/`@Parameter`、Swagger v2 `@ApiModelProperty`/`@ApiParam`、Jackson `@JsonPropertyDescription`（零编译依赖，宿主没用相应注解时说明为空）；UI 调试面板按结构**自动生成示例 JSON 预填**，并展示请求/响应字段说明表
 - **WebSocket**（三种形态，宿主未使用 WebSocket 时零影响）：
   - `@ServerEndpoint` 注解端点（SB2=javax / SB3=jakarta；须注册为 Spring Bean，容器 SCI 直接注册的端点不在覆盖内）
   - `WebSocketConfigurer` 注册的 handler（含 SockJS 标记）

@@ -6,15 +6,22 @@ public class ParamInfo {
     private ParamSource source;
     private String type;
     private boolean required;
+    /** 参数说明（Swagger @Parameter/@ApiParam 反射读取，可为空串）。 */
+    private String description;
 
     public ParamInfo() {
     }
 
     public ParamInfo(String name, ParamSource source, String type, boolean required) {
+        this(name, source, type, required, "");
+    }
+
+    public ParamInfo(String name, ParamSource source, String type, boolean required, String description) {
         this.name = name;
         this.source = source;
         this.type = type;
         this.required = required;
+        this.description = description;
     }
 
     public String getName() {
@@ -47,5 +54,13 @@ public class ParamInfo {
 
     public void setRequired(boolean required) {
         this.required = required;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

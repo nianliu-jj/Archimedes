@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -84,6 +86,34 @@ class EndToEndTest {
         assertThat(resp.getBody()).contains("id=\"tabs\"");
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void requestAndResponseSchemasAreResolved() throws Exception {
+        ResponseEntity<String> resp = rest.getForEntity("/archimedes/apis", String.class);
+        List<Map<String, Object>> apis = restApis(resp.getBody());
+
+        Map<String, Object> create = apis.stream()
+                .filter(a -> ((List<String>) a.get("paths")).contains("/demo/users"))
+                .findFirst().orElseThrow(IllegalStateException::new);
+
+        // 契约增强：请求体字段树在列（含集合标记）
+        Map<String, Object> reqSchema = (Map<String, Object>) create.get("requestBodySchema");
+        assertThat(reqSchema.get("type")).isEqualTo("CreateUserRequest");
+        List<Map<String, Object>> fields = (List<Map<String, Object>>) reqSchema.get("children");
+        assertThat(fields).anySatisfy(f -> {
+            assertThat(f.get("name")).isEqualTo("username");
+            assertThat(f.get("type")).isEqualTo("String");
+        });
+        assertThat(fields).anySatisfy(f -> {
+            assertThat(f.get("name")).isEqualTo("tags");
+            assertThat(f.get("array")).isEqualTo(true);
+        });
+
+        // 响应体结构：解包 ResponseEntity 后为同一 DTO
+        Map<String, Object> respSchema = (Map<String, Object>) create.get("responseSchema");
+        assertThat(respSchema.get("type")).isEqualTo("CreateUserRequest");
+    }
+
     private List<Map<String, Object>> restApis(String body) throws Exception {
         Map<String, Object> catalog = mapper.readValue(body, new TypeReference<Map<String, Object>>() {
         });
@@ -105,5 +135,16 @@ class EndToEndTest {
         public String hello(@RequestParam String name) {
             return "hi " + name;
         }
+
+        @PostMapping("/demo/users")
+        public ResponseEntity<CreateUserRequest> create(@RequestBody CreateUserRequest request) {
+            return ResponseEntity.ok(request);
+        }
+    }
+
+    /** schema 断言用 DTO：字段反射视图（无需 getter）。 */
+    static class CreateUserRequest {
+        private String username;
+        private List<String> tags;
     }
 }

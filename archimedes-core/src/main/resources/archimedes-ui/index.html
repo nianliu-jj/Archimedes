@@ -38,6 +38,7 @@
         .result pre { background: #f2f2f2; padding: 10px; overflow: auto; max-height: 320px; font-size: 12px; margin: 4px 0; white-space: pre-wrap; word-break: break-all; }
         .status-ok { color: #0a7d38; font-weight: 600; }
         .status-err { color: #c0392b; font-weight: 600; }
+        table.schema { width: auto; min-width: 55%; margin: 4px 0 6px; }
     </style>
 </head>
 <body>
@@ -232,11 +233,60 @@
         renderTryPathVars();
     }
 
-    function kvRowHtml(name, required) {
+    function kvRowHtml(name, required, desc) {
         return '<div class="kv"><input placeholder="name" class="kv-k" value="' + esc(name) + '">'
             + ' = <input placeholder="value" class="kv-v">'
             + (required ? '<span class="req" title="required">*</span>' : '')
+            + (desc ? ' <span class="meta">' + esc(desc) + '</span>' : '')
             + '</div>';
+    }
+
+    /* 按 schema 生成示例 JSON：叶子按类型给 0/false/""，集合包一层数组，Map 给空对象 */
+    function leafExample(type) {
+        var t = String(type);
+        if (/^(int|long|short|byte|double|float|Integer|Long|Short|Byte|Double|Float|BigDecimal|BigInteger|Number)$/.test(t)) { return 0; }
+        if (/^(boolean|Boolean)$/.test(t)) { return false; }
+        return '';
+    }
+
+    function exampleFromSchema(node) {
+        var value;
+        if (/^Map</.test(node.type)) {
+            value = {};
+        } else if (node.children && node.children.length) {
+            value = {};
+            node.children.forEach(function (c) { value[c.name] = exampleFromSchema(c); });
+        } else {
+            value = leafExample(node.type);
+        }
+        return node.array ? [value] : value;
+    }
+
+    /* 字段表：字段/类型/必填/说明，嵌套字段缩进展示 */
+    function schemaRows(node, depth) {
+        if (!node.children || !node.children.length) { return ''; }
+        return node.children.map(function (c) {
+            var indent = depth ? '<span style="display:inline-block;width:' + (depth * 16) + 'px"></span>' : '';
+            return '<tr>'
+                + '<td>' + indent + esc(c.name) + '</td>'
+                + '<td><code>' + esc(c.type) + (c.array ? '[]' : '') + '</code></td>'
+                + '<td>' + (c.required ? '<span class="req">*</span>' : '') + '</td>'
+                + '<td>' + esc(c.description || '') + '</td>'
+                + '</tr>' + schemaRows(c, depth + 1);
+        }).join('');
+    }
+
+    function schemaTableHtml(title, schema) {
+        if (!schema) { return ''; }
+        var typeLabel = esc(schema.type) + (schema.array ? '[]' : '');
+        var rows = schemaRows(schema, 0);
+        if (!rows) {
+            // 标量根：只标注类型，不出表格
+            return '<h3>' + title + ' <span class="count">' + typeLabel + '</span></h3>';
+        }
+        return '<h3>' + title + ' <span class="count">' + typeLabel + '</span></h3>'
+            + '<table class="schema"><thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>'
+            + '<tbody>' + rows + '</tbody></table>';
     }
 
     function tryFormHtml(api) {
@@ -244,12 +294,17 @@
         var queryRows = '', headerRows = '';
         var hasBodyParam = false;
         api.params.forEach(function (p) {
-            if (p.source === 'QUERY') { queryRows += kvRowHtml(p.name, p.required); }
-            if (p.source === 'HEADER') { headerRows += kvRowHtml(p.name, p.required); }
+            if (p.source === 'QUERY') { queryRows += kvRowHtml(p.name, p.required, p.description); }
+            if (p.source === 'HEADER') { headerRows += kvRowHtml(p.name, p.required, p.description); }
             if (p.source === 'BODY') { hasBodyParam = true; }
         });
         var mayHaveBody = hasBodyParam || methods.join(' ').match(/POST|PUT|PATCH|DELETE/);
         var ct = (api.consumes && api.consumes.length) ? api.consumes[0] : 'application/json';
+        // 请求体预填：有 schema 按字段树生成示例 JSON，否则维持旧行为
+        var bodyExample = hasBodyParam ? '{}' : '';
+        if (api.requestBodySchema) {
+            try { bodyExample = JSON.stringify(exampleFromSchema(api.requestBodySchema), null, 2); } catch (e) { }
+        }
         return '<div>'
             + '<select id="tryMethod">' + methods.map(function (m) {
                 return '<option value="' + esc(m) + '">' + esc(m) + '</option>';
@@ -267,8 +322,10 @@
             + (mayHaveBody
                 ? '<h3>Body</h3><div>Content-Type <input id="tryCt" value="' + esc(ct) + '" style="width:220px"></div>'
                     + '<textarea id="tryBody" placeholder="request body (skipped for GET/HEAD)">'
-                    + (hasBodyParam ? '{}' : '') + '</textarea>'
+                    + esc(bodyExample) + '</textarea>'
                 : '')
+            + schemaTableHtml('Request Fields', api.requestBodySchema)
+            + schemaTableHtml('Response Fields', api.responseSchema)
             + '<div class="result" id="tryResult"></div>';
     }
 
@@ -288,7 +345,15 @@
     function renderTryPathVars() {
         var names = pathVarNames(document.getElementById('tryPath').value);
         document.getElementById('tryPathVars').innerHTML = names.map(function (n) {
-            return ' <label><code>{' + esc(n) + '}</code>=</label><input class="pv" data-name="' + esc(n) + '" style="width:110px">';
+            // 路径变量说明：从契约 PATH 参数按名匹配（title 悬浮展示）
+            var desc = '';
+            if (tryApi) {
+                tryApi.params.forEach(function (p) {
+                    if (p.source === 'PATH' && p.name === n && p.description) { desc = p.description; }
+                });
+            }
+            return ' <label><code>{' + esc(n) + '}</code>=</label><input class="pv" data-name="' + esc(n) + '"'
+                + (desc ? ' title="' + esc(desc) + '"' : '') + ' style="width:110px">';
         }).join('');
     }
 

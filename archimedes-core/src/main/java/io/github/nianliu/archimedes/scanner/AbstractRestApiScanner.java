@@ -2,8 +2,10 @@ package io.github.nianliu.archimedes.scanner;
 
 import io.github.nianliu.archimedes.config.ArchimedesApiProperties;
 import io.github.nianliu.archimedes.model.ApiInfo;
+import io.github.nianliu.archimedes.model.FieldInfo;
 import io.github.nianliu.archimedes.model.ParamInfo;
 import io.github.nianliu.archimedes.model.ParamSource;
+import io.github.nianliu.archimedes.scanner.schema.TypeSchemaResolver;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterNameDiscoverer;
@@ -85,7 +87,20 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         info.setProduces(produces);
         info.setDeprecated(method.isAnnotationPresent(Deprecated.class)
                 || handlerMethod.getBeanType().isAnnotationPresent(Deprecated.class));
+        // 契约增强：请求体/响应体字段结构（解析失败降级 null，不影响主体）
+        info.setRequestBodySchema(resolveRequestBodySchema(handlerMethod));
+        info.setResponseSchema(TypeSchemaResolver.resolve(method.getGenericReturnType()));
         return info;
+    }
+
+    /** 取首个 @RequestBody 参数的泛型类型做结构解析；无 BODY 参数返回 null。 */
+    private FieldInfo resolveRequestBodySchema(HandlerMethod handlerMethod) {
+        for (MethodParameter parameter : handlerMethod.getMethodParameters()) {
+            if (parameter.getParameterAnnotation(RequestBody.class) != null) {
+                return TypeSchemaResolver.resolve(parameter.getGenericParameterType());
+            }
+        }
+        return null;
     }
 
     private boolean isExcluded(ApiInfo info) {
@@ -122,27 +137,29 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
 
     private ParamInfo toParamInfo(MethodParameter parameter) {
         String type = parameter.getGenericParameterType().getTypeName();
+        // 参数说明：Swagger @Parameter/@ApiParam 反射读取（宿主没用 Swagger 时为空串）
+        String description = TypeSchemaResolver.paramDescription(parameter.getParameterAnnotations());
 
         RequestParam requestParam = parameter.getParameterAnnotation(RequestParam.class);
         if (requestParam != null) {
             String name = firstNonEmpty(requestParam.name(), requestParam.value(), fallbackName(parameter));
-            return new ParamInfo(name, ParamSource.QUERY, type, requestParam.required());
+            return new ParamInfo(name, ParamSource.QUERY, type, requestParam.required(), description);
         }
         PathVariable pathVariable = parameter.getParameterAnnotation(PathVariable.class);
         if (pathVariable != null) {
             String name = firstNonEmpty(pathVariable.name(), pathVariable.value(), fallbackName(parameter));
-            return new ParamInfo(name, ParamSource.PATH, type, pathVariable.required());
+            return new ParamInfo(name, ParamSource.PATH, type, pathVariable.required(), description);
         }
         RequestHeader requestHeader = parameter.getParameterAnnotation(RequestHeader.class);
         if (requestHeader != null) {
             String name = firstNonEmpty(requestHeader.name(), requestHeader.value(), fallbackName(parameter));
-            return new ParamInfo(name, ParamSource.HEADER, type, requestHeader.required());
+            return new ParamInfo(name, ParamSource.HEADER, type, requestHeader.required(), description);
         }
         RequestBody requestBody = parameter.getParameterAnnotation(RequestBody.class);
         if (requestBody != null) {
-            return new ParamInfo(fallbackName(parameter), ParamSource.BODY, type, requestBody.required());
+            return new ParamInfo(fallbackName(parameter), ParamSource.BODY, type, requestBody.required(), description);
         }
-        return new ParamInfo(fallbackName(parameter), ParamSource.OTHER, type, false);
+        return new ParamInfo(fallbackName(parameter), ParamSource.OTHER, type, false, description);
     }
 
     private static String firstNonEmpty(String... values) {
