@@ -180,24 +180,48 @@
         var all = catalog.restApis || [];
         var mf = document.getElementById('restMethod').value;
         var rows = all.filter(function (a) {
-            var hay = (a.httpMethods.join(' ') + ' ' + a.paths.join(' ') + ' ' + a.controllerClass).toLowerCase();
+            var hay = (a.httpMethods.join(' ') + ' ' + a.paths.join(' ') + ' ' + a.controllerClass
+                + ' ' + (a.summary || '') + ' ' + (a.tag || '')).toLowerCase();
             return hay.indexOf(q) >= 0 && (!mf || a.httpMethods.indexOf(mf) >= 0);
         });
         restRendered = rows;
         document.getElementById('restCount').textContent = ' (' + rows.length + '/' + all.length + ')';
-        document.getElementById('restRows').innerHTML = rows.length === 0
-            ? '<tr><td colspan="6" class="empty">no REST endpoints</td></tr>'
-            : rows.map(function (a, i) {
+        // 按模块（tag）分组渲染，每组前插入模块标题行
+        var grouped = groupByTag(rows);
+        var html = '';
+        for (var g = 0; g < grouped.length; g++) {
+            var group = grouped[g];
+            html += '<tr><td colspan="7" style="background:#eef2f7;font-weight:600;font-size:13px;padding:8px">'
+                + esc(group.tag) + (group.tagDesc ? ' <span class="meta">— ' + esc(group.tagDesc) + '</span>' : '')
+                + '</td></tr>';
+            for (var j = 0; j < group.items.length; j++) {
+                var a = group.items[j];
+                var idx = rows.indexOf(a);
                 var cls = a.deprecated ? ' class="dep"' : '';
-                return '<tr id="rest-r' + i + '"' + cls + '>'
+                var desc = a.summary ? '<br><span class="meta">' + esc(a.summary) + '</span>' : '';
+                html += '<tr id="rest-r' + idx + '"' + cls + '>'
                     + '<td class="m">' + esc(a.httpMethods.join(', ')) + '</td>'
                     + '<td>' + a.paths.map(function (p) { return '<code>' + esc(p) + '</code>'; }).join('<br>') + '</td>'
-                    + '<td>' + esc(a.controllerClass.split('.').pop()) + '#' + esc(a.handlerMethod) + '</td>'
+                    + '<td>' + esc(a.controllerClass.split('.').pop()) + '#' + esc(a.handlerMethod) + desc + '</td>'
                     + '<td>' + esc(paramText(a.params)) + '</td>'
                     + '<td><code>' + esc(a.returnType) + '</code></td>'
-                    + '<td><button class="try-btn" onclick="toggleTry(' + i + ')">Try</button></td>'
+                    + '<td><button class="try-btn" onclick="toggleTry(' + idx + ')">Try</button></td>'
                     + '</tr>';
-            }).join('');
+            }
+        }
+        document.getElementById('restRows').innerHTML = rows.length === 0
+            ? '<tr><td colspan="7" class="empty">no REST endpoints</td></tr>' : html;
+    }
+
+    /** 按 tag（模块）分组，保持原序。 */
+    function groupByTag(apis) {
+        var map = {}, order = [];
+        apis.forEach(function (a) {
+            var t = a.tag || a.controllerClass.split('.').pop();
+            if (!map[t]) { map[t] = { tag: t, tagDesc: a.tagDescription || '', items: [] }; order.push(t); }
+            map[t].items.push(a);
+        });
+        return order.map(function (t) { return map[t]; });
     }
 
     function populateMethodFilter() {
@@ -251,7 +275,10 @@
 
     function exampleFromSchema(node) {
         var value;
-        if (/^Map</.test(node.type)) {
+        // 枚举字段：取第一个可选值作为示例
+        if (node.enumValues && node.enumValues.length) {
+            value = node.enumValues[0];
+        } else if (/^Map</.test(node.type)) {
             value = {};
         } else if (node.children && node.children.length) {
             value = {};
@@ -262,16 +289,21 @@
         return node.array ? [value] : value;
     }
 
-    /* 字段表：字段/类型/必填/说明，嵌套字段缩进展示 */
+    /* 字段表：字段/类型/必填/说明，嵌套字段缩进展示；枚举字段额外展示可选值 */
     function schemaRows(node, depth) {
         if (!node.children || !node.children.length) { return ''; }
         return node.children.map(function (c) {
             var indent = depth ? '<span style="display:inline-block;width:' + (depth * 16) + 'px"></span>' : '';
+            var descHtml = esc(c.description || '');
+            // 枚举字段标注可选值
+            if (c.enumValues && c.enumValues.length) {
+                descHtml += (descHtml ? ' ' : '') + '<code>' + c.enumValues.map(esc).join(' | ') + '</code>';
+            }
             return '<tr>'
                 + '<td>' + indent + esc(c.name) + '</td>'
                 + '<td><code>' + esc(c.type) + (c.array ? '[]' : '') + '</code></td>'
                 + '<td>' + (c.required ? '<span class="req">*</span>' : '') + '</td>'
-                + '<td>' + esc(c.description || '') + '</td>'
+                + '<td>' + descHtml + '</td>'
                 + '</tr>' + schemaRows(c, depth + 1);
         }).join('');
     }
@@ -305,15 +337,17 @@
         if (api.requestBodySchema) {
             try { bodyExample = JSON.stringify(exampleFromSchema(api.requestBodySchema), null, 2); } catch (e) { }
         }
-        return '<div>'
-            + '<select id="tryMethod">' + methods.map(function (m) {
-                return '<option value="' + esc(m) + '">' + esc(m) + '</option>';
-            }).join('') + '</select>'
-            + '<select id="tryPath" onchange="renderTryPathVars()">' + api.paths.map(function (p) {
-                return '<option value="' + esc(p) + '">' + esc(p) + '</option>';
-            }).join('') + '</select>'
+        var descLine = api.summary ? '<div class="meta" style="margin-bottom:6px">' + esc(api.summary)
+            + (api.operationDescription ? ' — ' + esc(api.operationDescription) : '') + '</div>' : '';
+        return descLine + '<div>'
+            + '<span style="display:inline-block;padding:4px 8px;background:#e8e8e8;color:#555;border-radius:3px;font-weight:600;font-size:12px;cursor:default">'
+                + esc(methods[0]) + '</span> '
+            + '<code style="background:#e8e8e8;padding:4px 8px;color:#555;border-radius:3px">'
+                + esc(api.paths[0]) + '</code>'
+            + '<input type="hidden" id="tryMethod" value="' + esc(methods[0]) + '">'
+            + '<input type="hidden" id="tryPath" value="' + esc(api.paths[0]) + '">'
             + '<span id="tryPathVars"></span>'
-            + '<button class="send-btn" onclick="sendTryRequest()">Send</button>'
+            + '<button class="send-btn" style="margin-left:8px" onclick="sendTryRequest()">Send</button>'
             + '</div>'
             + '<h3>Query Params</h3><div id="tryQuery">' + queryRows + '</div>'
             + '<button class="try-btn" onclick="addKvRow(\'tryQuery\')">+ param</button>'

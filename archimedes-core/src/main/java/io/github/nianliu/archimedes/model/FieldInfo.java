@@ -26,6 +26,9 @@ public class FieldInfo {
     /** 是否为集合/数组语义（children 描述其元素结构）。 */
     private boolean array;
 
+    /** 枚举可选值列表（非枚举字段为 null；UI 渲染为下拉框供用户选择，避免手动输入出错）。 */
+    private List<String> enumValues;
+
     /** 嵌套子字段；叶子节点为空列表。 */
     private List<FieldInfo> children;
 
@@ -34,11 +37,17 @@ public class FieldInfo {
 
     public FieldInfo(String name, String type, boolean required, String description,
                      boolean array, List<FieldInfo> children) {
+        this(name, type, required, description, array, null, children);
+    }
+
+    public FieldInfo(String name, String type, boolean required, String description,
+                     boolean array, List<String> enumValues, List<FieldInfo> children) {
         this.name = name;
         this.type = type;
         this.required = required;
         this.description = description;
         this.array = array;
+        this.enumValues = enumValues;
         this.children = children;
     }
 
@@ -80,6 +89,14 @@ public class FieldInfo {
 
     public void setArray(boolean array) {
         this.array = array;
+    }
+
+    public List<String> getEnumValues() {
+        return enumValues;
+    }
+
+    public void setEnumValues(List<String> enumValues) {
+        this.enumValues = enumValues;
     }
 
     public List<FieldInfo> getChildren() {

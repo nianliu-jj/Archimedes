@@ -35,6 +35,14 @@ public class ApiInfo {
     private FieldInfo requestBodySchema;
     /** 返回类型（解包 ResponseEntity/Mono 等后）的字段结构树；void 或解析失败时为 null。 */
     private FieldInfo responseSchema;
+    /** 接口摘要（来自 Swagger @Operation#summary 或 @ApiOperation#value，可为空）。 */
+    private String summary;
+    /** 接口详细描述（来自 Swagger @Operation#description 或 @ApiOperation#notes，可为空）。 */
+    private String operationDescription;
+    /** 所属模块标签（Controller 维度，来自 @Tag#name 或 @Api#tags，用于前端按模块分组；可为空则按类简名兜底）。 */
+    private String tag;
+    /** 模块描述（来自 @Tag#description 或 @Api#value，可为空）。 */
+    private String tagDescription;
 
     public String getControllerClass() {
         return controllerClass;
@@ -122,5 +130,37 @@ public class ApiInfo {
 
     public void setResponseSchema(FieldInfo responseSchema) {
         this.responseSchema = responseSchema;
+    }
+
+    public String getSummary() {
+        return summary;
+    }
+
+    public void setSummary(String summary) {
+        this.summary = summary;
+    }
+
+    public String getOperationDescription() {
+        return operationDescription;
+    }
+
+    public void setOperationDescription(String operationDescription) {
+        this.operationDescription = operationDescription;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
+    }
+
+    public String getTagDescription() {
+        return tagDescription;
+    }
+
+    public void setTagDescription(String tagDescription) {
+        this.tagDescription = tagDescription;
     }
 }

@@ -111,6 +111,88 @@ public final class TypeSchemaResolver {
         return "";
     }
 
+    /**
+     * 从处理方法注解中提取接口摘要（Swagger v3 @Operation#summary / v2 @ApiOperation#value），
+     * 无则空串。
+     */
+    public static String operationSummary(Annotation[] methodAnnotations) {
+        // Swagger v3: @Operation(summary = "...")
+        String v3 = annotationString(methodAnnotations,
+                "io.swagger.v3.oas.annotations.Operation", "summary");
+        if (v3 != null && !v3.isEmpty()) {
+            return v3;
+        }
+        // Swagger v2: @ApiOperation(value = "...")
+        String v2 = annotationString(methodAnnotations,
+                "io.swagger.annotations.ApiOperation", "value");
+        return (v2 != null && !v2.isEmpty()) ? v2 : "";
+    }
+
+    /**
+     * 从处理方法注解中提取接口描述（Swagger v3 @Operation#description / v2 @ApiOperation#notes），
+     * 无则空串。
+     */
+    public static String operationDescription(Annotation[] methodAnnotations) {
+        String v3 = annotationString(methodAnnotations,
+                "io.swagger.v3.oas.annotations.Operation", "description");
+        if (v3 != null && !v3.isEmpty()) {
+            return v3;
+        }
+        String v2 = annotationString(methodAnnotations,
+                "io.swagger.annotations.ApiOperation", "notes");
+        return (v2 != null && !v2.isEmpty()) ? v2 : "";
+    }
+
+    /**
+     * 从 Controller 类注解中提取模块标签名（Swagger v3 @Tag#name / v2 @Api#tags 首元素），
+     * 无则返回类简名。
+     */
+    public static String tagName(Annotation[] classAnnotations, String fallbackClassName) {
+        // Swagger v3: @Tag(name = "...")
+        String v3 = annotationString(classAnnotations,
+                "io.swagger.v3.oas.annotations.tags.Tag", "name");
+        if (v3 != null && !v3.isEmpty()) {
+            return v3;
+        }
+        // Swagger v2: @Api(tags = {"..."}) —— 取第一个
+        String v2tags = annotationString(classAnnotations,
+                "io.swagger.annotations.Api", "tags");
+        if (v2tags != null && !v2tags.isEmpty() && !"[]".equals(v2tags)) {
+            // String.valueOf 对 String[] 返回 "[Ljava.lang.String;@..."，需反射取数组
+            for (Annotation a : classAnnotations) {
+                if ("io.swagger.annotations.Api".equals(a.annotationType().getName())) {
+                    try {
+                        Object arr = a.annotationType().getMethod("tags").invoke(a);
+                        if (arr instanceof String[] && ((String[]) arr).length > 0
+                                && !((String[]) arr)[0].isEmpty()) {
+                            return ((String[]) arr)[0];
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+        }
+        // 兜底：Controller 类简名（去掉 Controller 后缀，如 OrderController → Order）
+        String simple = fallbackClassName.contains(".")
+                ? fallbackClassName.substring(fallbackClassName.lastIndexOf('.') + 1) : fallbackClassName;
+        return simple.endsWith("Controller") ? simple.substring(0, simple.length() - 10) : simple;
+    }
+
+    /**
+     * 从 Controller 类注解中提取模块描述（Swagger v3 @Tag#description / v2 @Api#value），
+     * 无则空串。
+     */
+    public static String tagDescription(Annotation[] classAnnotations) {
+        String v3 = annotationString(classAnnotations,
+                "io.swagger.v3.oas.annotations.tags.Tag", "description");
+        if (v3 != null && !v3.isEmpty()) {
+            return v3;
+        }
+        String v2 = annotationString(classAnnotations,
+                "io.swagger.annotations.Api", "value");
+        return (v2 != null && !v2.isEmpty()) ? v2 : "";
+    }
+
     /* ---------- 递归解析 ---------- */
 
     /**
@@ -160,10 +242,12 @@ public final class TypeSchemaResolver {
         if (raw == void.class || raw == Void.class) {
             return null;
         }
-        // 枚举：叶子 + 自动列出可选值（录入时可直接对照）
+        // 枚举：叶子 + 自动列出可选值（录入时可直接对照）+ enumValues 列表（UI 下拉框）
         if (raw.isEnum()) {
-            return leaf(name, raw.getSimpleName(), required,
-                    mergeDescription(description, "枚举: " + enumValues(raw)), array);
+            List<String> values = enumValueList(raw);
+            return new FieldInfo(name, raw.getSimpleName(), required,
+                    mergeDescription(description, "枚举: " + String.join(" / ", values)),
+                    array, values, Collections.<FieldInfo>emptyList());
         }
         // Map：展示键值简名，值为 POJO 时把值的字段作为 children（须在 isLeaf 之前判断——Map 也是 java.*）
         if (Map.class.isAssignableFrom(raw)) {
@@ -279,6 +363,18 @@ public final class TypeSchemaResolver {
         return name.startsWith("java.") || name.startsWith("javax.") || name.startsWith("jakarta.")
                 || name.startsWith("jdk.") || name.startsWith("sun.")
                 || name.startsWith("org.springframework.");
+    }
+
+    /** 枚举可选值列表（供 UI 下拉框选择）。 */
+    private static List<String> enumValueList(Class<?> enumClass) {
+        Object[] constants = enumClass.getEnumConstants();
+        List<String> values = new ArrayList<>();
+        if (constants != null) {
+            for (Object c : constants) {
+                values.add(((Enum<?>) c).name());
+            }
+        }
+        return values;
     }
 
     private static String enumValues(Class<?> enumClass) {

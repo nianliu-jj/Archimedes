@@ -95,6 +95,13 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         // 契约增强：请求体/响应体字段结构（解析失败降级 null，不影响主体）
         info.setRequestBodySchema(resolveRequestBodySchema(handlerMethod));
         info.setResponseSchema(TypeSchemaResolver.resolve(method.getGenericReturnType()));
+        // 接口描述：反射读取 Swagger @Operation/@ApiOperation 注解（零编译依赖）
+        info.setSummary(TypeSchemaResolver.operationSummary(method.getAnnotations()));
+        info.setOperationDescription(TypeSchemaResolver.operationDescription(method.getAnnotations()));
+        // 模块分组：反射读取 Controller 上的 @Tag/@Api 注解（零编译依赖），无则用类简名兜底
+        Class<?> controllerType = handlerMethod.getBeanType();
+        info.setTag(TypeSchemaResolver.tagName(controllerType.getAnnotations(), controllerType.getName()));
+        info.setTagDescription(TypeSchemaResolver.tagDescription(controllerType.getAnnotations()));
         return info;
     }
 
