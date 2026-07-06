@@ -1,10 +1,22 @@
 package io.github.nianliu.archimedes.model;
 
+/**
+ * 单个接口参数的契约信息：参数名、绑定来源、类型、是否必填与说明。
+ * <p>由 REST 扫描器结合方法参数上的绑定注解（@RequestParam/@PathVariable/@RequestBody 等）
+ * 与 Swagger 注解反射生成，供 UI 渲染参数表与在线调试表单。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-06
+ */
 public class ParamInfo {
 
+    /** 参数名。 */
     private String name;
+    /** 参数绑定来源（QUERY/PATH/BODY/HEADER 等）。 */
     private ParamSource source;
+    /** 参数类型展示串（简名）。 */
     private String type;
+    /** 是否必填。 */
     private boolean required;
     /** 参数说明（Swagger @Parameter/@ApiParam 反射读取，可为空串）。 */
     private String description;
@@ -12,10 +24,12 @@ public class ParamInfo {
     public ParamInfo() {
     }
 
+    /** 便捷构造：说明缺省为空串。 */
     public ParamInfo(String name, ParamSource source, String type, boolean required) {
         this(name, source, type, required, "");
     }
 
+    /** 全量构造。 */
     public ParamInfo(String name, ParamSource source, String type, boolean required, String description) {
         this.name = name;
         this.source = source;

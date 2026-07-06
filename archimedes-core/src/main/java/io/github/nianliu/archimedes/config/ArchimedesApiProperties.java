@@ -5,6 +5,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Archimedes 的配置属性绑定类，前缀为 {@code archimedes.api}。
+ * <p>集中承载 starter 的所有可调开关（总开关、端点根路径、内置 UI 开关、扫描包过滤），
+ * 由 Spring Boot 通过 {@link ConfigurationProperties} 自动从配置源绑定。
+ * 设计要点：所有默认值内聚在本类，避免在 Controller/AutoConfiguration 中散落硬编码。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-06
+ */
 @ConfigurationProperties(prefix = "archimedes.api")
 public class ArchimedesApiProperties {
 
@@ -27,6 +36,7 @@ public class ArchimedesApiProperties {
         return enabled;
     }
 
+    /** 设置 starter 总开关。 */
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
@@ -35,6 +45,7 @@ public class ArchimedesApiProperties {
         return basePath;
     }
 
+    /** 设置端点根路径（建议保持以 {@code /} 开头，不以 {@code /} 结尾）。 */
     public void setBasePath(String basePath) {
         this.basePath = basePath;
     }
@@ -43,6 +54,7 @@ public class ArchimedesApiProperties {
         return uiEnabled;
     }
 
+    /** 设置是否挂载内置 UI 页面。 */
     public void setUiEnabled(boolean uiEnabled) {
         this.uiEnabled = uiEnabled;
     }
@@ -51,6 +63,7 @@ public class ArchimedesApiProperties {
         return basePackages;
     }
 
+    /** 设置扫描包前缀白名单；空列表表示不做包级过滤。 */
     public void setBasePackages(List<String> basePackages) {
         this.basePackages = basePackages;
     }
