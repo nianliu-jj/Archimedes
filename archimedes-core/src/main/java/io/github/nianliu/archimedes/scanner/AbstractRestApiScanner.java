@@ -165,27 +165,40 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         String type = parameter.getGenericParameterType().getTypeName();
         // 参数说明：Swagger @Parameter/@ApiParam 反射读取（宿主没用 Swagger 时为空串）
         String description = TypeSchemaResolver.paramDescription(parameter.getParameterAnnotations());
+        // 参数校验规则：javax/jakarta validation 注解提取（@Pattern/@Size/@Min/@Max 等）
+        java.util.Map<String, Object> validation = TypeSchemaResolver.paramValidation(parameter.getParameterAnnotations());
 
+        ParamInfo pi;
         RequestParam requestParam = parameter.getParameterAnnotation(RequestParam.class);
         if (requestParam != null) {
             String name = firstNonEmpty(requestParam.name(), requestParam.value(), fallbackName(parameter));
-            return new ParamInfo(name, ParamSource.QUERY, type, requestParam.required(), description);
+            pi = new ParamInfo(name, ParamSource.QUERY, type, requestParam.required(), description);
+            pi.setValidation(validation);
+            return pi;
         }
         PathVariable pathVariable = parameter.getParameterAnnotation(PathVariable.class);
         if (pathVariable != null) {
             String name = firstNonEmpty(pathVariable.name(), pathVariable.value(), fallbackName(parameter));
-            return new ParamInfo(name, ParamSource.PATH, type, pathVariable.required(), description);
+            pi = new ParamInfo(name, ParamSource.PATH, type, pathVariable.required(), description);
+            pi.setValidation(validation);
+            return pi;
         }
         RequestHeader requestHeader = parameter.getParameterAnnotation(RequestHeader.class);
         if (requestHeader != null) {
             String name = firstNonEmpty(requestHeader.name(), requestHeader.value(), fallbackName(parameter));
-            return new ParamInfo(name, ParamSource.HEADER, type, requestHeader.required(), description);
+            pi = new ParamInfo(name, ParamSource.HEADER, type, requestHeader.required(), description);
+            pi.setValidation(validation);
+            return pi;
         }
         RequestBody requestBody = parameter.getParameterAnnotation(RequestBody.class);
         if (requestBody != null) {
-            return new ParamInfo(fallbackName(parameter), ParamSource.BODY, type, requestBody.required(), description);
+            pi = new ParamInfo(fallbackName(parameter), ParamSource.BODY, type, requestBody.required(), description);
+            pi.setValidation(validation);
+            return pi;
         }
-        return new ParamInfo(fallbackName(parameter), ParamSource.OTHER, type, false, description);
+        pi = new ParamInfo(fallbackName(parameter), ParamSource.OTHER, type, false, description);
+        pi.setValidation(validation);
+        return pi;
     }
 
     /** 返回第一个非空字符串；全空返回空串。用于"注解 name → 注解 value → 参数名"的优先级回退。 */

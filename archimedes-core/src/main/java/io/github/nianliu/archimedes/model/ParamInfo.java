@@ -20,6 +20,8 @@ public class ParamInfo {
     private boolean required;
     /** 参数说明（Swagger @Parameter/@ApiParam 反射读取，可为空串）。 */
     private String description;
+    /** 前端校验规则（validation 注解提取：pattern/min/max/minLength/maxLength；无则为 null）。 */
+    private java.util.Map<String, Object> validation;
 
     public ParamInfo() {
     }
@@ -76,5 +78,13 @@ public class ParamInfo {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public java.util.Map<String, Object> getValidation() {
+        return validation;
+    }
+
+    public void setValidation(java.util.Map<String, Object> validation) {
+        this.validation = validation;
     }
 }

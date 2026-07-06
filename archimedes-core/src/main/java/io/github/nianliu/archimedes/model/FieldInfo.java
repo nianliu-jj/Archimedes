@@ -1,6 +1,7 @@
 package io.github.nianliu.archimedes.model;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 请求体/响应体的字段结构节点（递归树）：供 UI 生成示例 JSON 预填与
@@ -28,6 +29,9 @@ public class FieldInfo {
 
     /** 枚举可选值列表（非枚举字段为 null；UI 渲染为下拉框供用户选择，避免手动输入出错）。 */
     private List<String> enumValues;
+
+    /** 前端校验规则（validation 注解提取：pattern/min/max/minLength/maxLength；无则为 null）。 */
+    private Map<String, Object> validation;
 
     /** 嵌套子字段；叶子节点为空列表。 */
     private List<FieldInfo> children;
@@ -97,6 +101,14 @@ public class FieldInfo {
 
     public void setEnumValues(List<String> enumValues) {
         this.enumValues = enumValues;
+    }
+
+    public Map<String, Object> getValidation() {
+        return validation;
+    }
+
+    public void setValidation(Map<String, Object> validation) {
+        this.validation = validation;
     }
 
     public List<FieldInfo> getChildren() {

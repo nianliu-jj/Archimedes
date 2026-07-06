@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -232,11 +233,15 @@ public final class TypeSchemaResolver {
 
         String description = field != null ? fieldDescription(field) : "";
         boolean required = field != null && fieldRequired(field);
+        // 提取字段上的 validation 校验规则（@Pattern/@Size/@Min/@Max 等）
+        Map<String, Object> validation = field != null ? extractValidation(field.getAnnotations()) : null;
         Class<?> raw = rawClass(current);
 
         // 未绑定的类型变量（如 Result<T> 的 T）/通配符：按 Object 叶子（设计取舍：不做泛型变量绑定解析）
         if (raw == null) {
-            return leaf(name, "Object", required, description, array);
+            FieldInfo fi = leaf(name, "Object", required, description, array);
+            fi.setValidation(validation);
+            return fi;
         }
         // void 返回：无响应体结构
         if (raw == void.class || raw == Void.class) {
@@ -245,9 +250,11 @@ public final class TypeSchemaResolver {
         // 枚举：叶子 + 自动列出可选值（录入时可直接对照）+ enumValues 列表（UI 下拉框）
         if (raw.isEnum()) {
             List<String> values = enumValueList(raw);
-            return new FieldInfo(name, raw.getSimpleName(), required,
+            FieldInfo fi = new FieldInfo(name, raw.getSimpleName(), required,
                     mergeDescription(description, "枚举: " + String.join(" / ", values)),
                     array, values, Collections.<FieldInfo>emptyList());
+            fi.setValidation(validation);
+            return fi;
         }
         // Map：展示键值简名，值为 POJO 时把值的字段作为 children（须在 isLeaf 之前判断——Map 也是 java.*）
         if (Map.class.isAssignableFrom(raw)) {
@@ -269,14 +276,20 @@ public final class TypeSchemaResolver {
         }
         // 平台类型叶子：基本型/包装/字符串/数字/时间日期 + java/javax/jakarta/spring 兜底
         if (isLeaf(raw)) {
-            return leaf(name, raw.getSimpleName(), required, description, array);
+            FieldInfo fi = leaf(name, raw.getSimpleName(), required, description, array);
+            fi.setValidation(validation);
+            return fi;
         }
         // POJO：深度与循环双保护后展开字段
         if (depth >= MAX_DEPTH) {
-            return leaf(name, raw.getSimpleName(), required, mergeDescription(description, "(已达深度上限)"), array);
+            FieldInfo fi = leaf(name, raw.getSimpleName(), required, mergeDescription(description, "(已达深度上限)"), array);
+            fi.setValidation(validation);
+            return fi;
         }
         if (path.contains(raw)) {
-            return leaf(name, raw.getSimpleName(), required, mergeDescription(description, "(递归引用)"), array);
+            FieldInfo fi = leaf(name, raw.getSimpleName(), required, mergeDescription(description, "(递归引用)"), array);
+            fi.setValidation(validation);
+            return fi;
         }
         path.push(raw);
         try {
@@ -319,6 +332,80 @@ public final class TypeSchemaResolver {
 
     private static FieldInfo leaf(String name, String type, boolean required, String description, boolean array) {
         return new FieldInfo(name, type, required, description, array, Collections.<FieldInfo>emptyList());
+    }
+
+    /**
+     * 提取字段上的 validation 校验规则（javax/jakarta 双系）：
+     * <ul>
+     *   <li>@Pattern → pattern</li>
+     *   <li>@Size → minLength / maxLength</li>
+     *   <li>@Min → min</li>
+     *   <li>@Max → max</li>
+     *   <li>@Email → email: true</li>
+     *   <li>@NotBlank → notBlank: true</li>
+     *   <li>@DecimalMin/@DecimalMax → decimalMin / decimalMax</li>
+     * </ul>
+     * 宿主未引入 validation 注解库时全部不命中，返回 null。
+     */
+    public static Map<String, Object> extractValidation(Annotation[] annotations) {
+        Map<String, Object> rules = new LinkedHashMap<>();
+        for (Annotation a : annotations) {
+            String fqcn = a.annotationType().getName();
+            // 去掉 javax/jakarta 前缀统一匹配
+            String suffix = fqcn.startsWith("javax.validation.constraints.")
+                    ? fqcn.substring("javax.validation.constraints.".length())
+                    : fqcn.startsWith("jakarta.validation.constraints.")
+                    ? fqcn.substring("jakarta.validation.constraints.".length())
+                    : null;
+            if (suffix == null) {
+                continue;
+            }
+            try {
+                switch (suffix) {
+                    case "Pattern":
+                        String regexp = (String) a.annotationType().getMethod("regexp").invoke(a);
+                        if (regexp != null && !regexp.isEmpty()) {
+                            rules.put("pattern", regexp);
+                        }
+                        break;
+                    case "Size":
+                        int sizeMin = (int) a.annotationType().getMethod("min").invoke(a);
+                        int sizeMax = (int) a.annotationType().getMethod("max").invoke(a);
+                        if (sizeMin > 0) { rules.put("minLength", sizeMin); }
+                        if (sizeMax < Integer.MAX_VALUE) { rules.put("maxLength", sizeMax); }
+                        break;
+                    case "Min":
+                        rules.put("min", a.annotationType().getMethod("value").invoke(a));
+                        break;
+                    case "Max":
+                        rules.put("max", a.annotationType().getMethod("value").invoke(a));
+                        break;
+                    case "Email":
+                        rules.put("email", true);
+                        break;
+                    case "NotBlank":
+                        rules.put("notBlank", true);
+                        break;
+                    case "DecimalMin":
+                        rules.put("decimalMin", String.valueOf(a.annotationType().getMethod("value").invoke(a)));
+                        break;
+                    case "DecimalMax":
+                        rules.put("decimalMax", String.valueOf(a.annotationType().getMethod("value").invoke(a)));
+                        break;
+                    default:
+                        // Positive/Negative/Future/Past 等不常用于前端校验，暂不提取
+                        break;
+                }
+            } catch (Exception ignored) {
+                // 注解属性读取失败（如版本差异缺失方法）静默跳过
+            }
+        }
+        return rules.isEmpty() ? null : rules;
+    }
+
+    /** 从方法参数注解中提取校验规则（供 Query/Header 等参数的前端校验）。 */
+    public static Map<String, Object> paramValidation(Annotation[] annotations) {
+        return extractValidation(annotations);
     }
 
     /** 取 Type 的原始 Class：Class 直接返回，ParameterizedType 取 rawType；类型变量/通配符等返回 null。 */

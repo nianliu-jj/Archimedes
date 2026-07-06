@@ -402,7 +402,121 @@
         return out;
     }
 
+    /**
+     * 发送前校验：检查必填、正则、长度、数值范围（来自 schema/param 的 validation 规则），
+     * 类似于表单校验。返回错误数组，空数组表示通过。
+     */
+    function validateBeforeSend() {
+        var errors = [];
+        if (!tryApi) { return errors; }
+        // 1) 校验路径变量（必填）
+        var pvs = document.querySelectorAll('#tryPathVars .pv');
+        for (var i = 0; i < pvs.length; i++) {
+            if (!pvs[i].value.trim()) {
+                errors.push('路径变量 {' + pvs[i].getAttribute('data-name') + '} 不能为空');
+            }
+        }
+        // 2) 校验 Query/Header 参数
+        tryApi.params.forEach(function (p) {
+            if (p.source !== 'QUERY' && p.source !== 'HEADER') { return; }
+            var inputs = document.querySelectorAll('#try' + (p.source === 'QUERY' ? 'Query' : 'Headers') + ' .kv');
+            for (var j = 0; j < inputs.length; j++) {
+                var k = inputs[j].getElementsByClassName('kv-k')[0];
+                if (k && k.value === p.name) {
+                    var v = inputs[j].getElementsByClassName('kv-v')[0].value;
+                    errors = errors.concat(validateValue(p.name, v, p.required, p.validation));
+                }
+            }
+        });
+        // 3) 校验请求体字段（逐字段递归匹配 JSON）
+        if (tryApi.requestBodySchema) {
+            var bodyEl = document.getElementById('tryBody');
+            if (bodyEl && bodyEl.value.trim()) {
+                try {
+                    var bodyObj = JSON.parse(bodyEl.value);
+                    validateSchemaFields('', bodyObj, tryApi.requestBodySchema, errors);
+                } catch (e) {
+                    errors.push('请求体 JSON 格式错误: ' + e.message);
+                }
+            }
+        }
+        return errors;
+    }
+
+    function validateValue(name, value, required, rules) {
+        var errs = [];
+        if (required && (value === '' || value === null || value === undefined)) {
+            errs.push(name + ' 是必填项');
+            return errs;
+        }
+        if (!rules || value === '' || value === null || value === undefined) { return errs; }
+        if (rules.pattern && !new RegExp(rules.pattern).test(value)) {
+            errs.push(name + ' 不匹配格式要求: ' + rules.pattern);
+        }
+        if (rules.minLength !== undefined && String(value).length < rules.minLength) {
+            errs.push(name + ' 长度不能小于 ' + rules.minLength);
+        }
+        if (rules.maxLength !== undefined && String(value).length > rules.maxLength) {
+            errs.push(name + ' 长度不能大于 ' + rules.maxLength);
+        }
+        if (rules.min !== undefined && Number(value) < Number(rules.min)) {
+            errs.push(name + ' 不能小于 ' + rules.min);
+        }
+        if (rules.max !== undefined && Number(value) > Number(rules.max)) {
+            errs.push(name + ' 不能大于 ' + rules.max);
+        }
+        if (rules.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            errs.push(name + ' 不是有效的邮箱格式');
+        }
+        if (rules.notBlank && String(value).trim() === '') {
+            errs.push(name + ' 不能为空白');
+        }
+        return errs;
+    }
+
+    function validateSchemaFields(prefix, obj, schema, errors) {
+        if (!schema || !schema.children || !obj || typeof obj !== 'object') { return; }
+        schema.children.forEach(function (field) {
+            var fullName = prefix ? prefix + '.' + field.name : field.name;
+            var val = obj[field.name];
+            // 必填校验
+            if (field.required && (val === undefined || val === null || val === '')) {
+                errors.push(fullName + ' 是必填项');
+            }
+            // validation 规则校验
+            if (val !== undefined && val !== null && field.validation) {
+                errors = errors.concat(validateValue(fullName, val, false, field.validation));
+            }
+            // 枚举值校验
+            if (field.enumValues && field.enumValues.length && val !== undefined && val !== null) {
+                if (field.enumValues.indexOf(String(val)) < 0) {
+                    errors.push(fullName + ' 只能为: ' + field.enumValues.join(' / '));
+                }
+            }
+            // 递归校验嵌套对象
+            if (field.children && field.children.length && val && typeof val === 'object' && !Array.isArray(val)) {
+                validateSchemaFields(fullName, val, field, errors);
+            }
+            // 数组元素逐一校验
+            if (field.array && Array.isArray(val)) {
+                val.forEach(function (item, idx) {
+                    if (field.children && field.children.length && item && typeof item === 'object') {
+                        validateSchemaFields(fullName + '[' + idx + ']', item, field, errors);
+                    }
+                });
+            }
+        });
+    }
+
     function sendTryRequest() {
+        // 发送前表单校验（类似表单提交前校验）
+        var validationErrors = validateBeforeSend();
+        if (validationErrors.length > 0) {
+            document.getElementById('tryResult').innerHTML =
+                '<div class="status-err">参数校验失败：</div><ul style="color:#c0392b;font-size:12px;margin:4px 0">'
+                + validationErrors.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul>';
+            return;
+        }
         var method = document.getElementById('tryMethod').value;
         var path = document.getElementById('tryPath').value;
         var pvs = document.querySelectorAll('#tryPathVars .pv');
