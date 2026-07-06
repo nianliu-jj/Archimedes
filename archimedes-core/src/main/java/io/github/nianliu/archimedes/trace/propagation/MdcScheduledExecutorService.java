@@ -25,21 +25,25 @@ class MdcScheduledExecutorService extends MdcExecutorService implements Schedule
         this.delegate = delegate;
     }
 
+    /** 单次延迟执行的 Runnable：包装后再委托，使定时触发时仍携带提交线程的 MDC。 */
     @Override
     public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
         return delegate.schedule(MdcWrappers.wrap(command), delay, unit);
     }
 
+    /** 单次延迟执行的 Callable：同上，为带返回值的定时任务补 MDC 传递。 */
     @Override
     public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
         return delegate.schedule(MdcWrappers.wrap(callable), delay, unit);
     }
 
+    /** 固定频率周期任务：每次触发均由包装器还原 MDC。 */
     @Override
     public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
         return delegate.scheduleAtFixedRate(MdcWrappers.wrap(command), initialDelay, period, unit);
     }
 
+    /** 固定延迟周期任务：每次触发均由包装器还原 MDC。 */
     @Override
     public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
         return delegate.scheduleWithFixedDelay(MdcWrappers.wrap(command), initialDelay, delay, unit);

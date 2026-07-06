@@ -2,6 +2,15 @@ package io.github.nianliu.archimedes.log;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+/**
+ * 链路日志采集配置项，绑定前缀 {@code archimedes.log.capture}。
+ *
+ * <p>控制内存有界日志存储（InMemoryLogStore）的开关与两级容量上限，
+ * 供 starter 在装配采集/查询相关 Bean 时读取。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-06
+ */
 @ConfigurationProperties(prefix = "archimedes.log.capture")
 public class LogCaptureProperties {
 
