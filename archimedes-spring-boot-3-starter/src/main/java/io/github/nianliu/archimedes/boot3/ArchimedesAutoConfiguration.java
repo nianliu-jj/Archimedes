@@ -71,6 +71,13 @@ public class ArchimedesAutoConfiguration {
                 rpcContributors.orderedStream().collect(Collectors.toList()));
     }
 
+    /** 热监听 SSE 推送控制器：定时检测契约变化并主动推送至前端（Servlet 栈限定，SSE 基于 SseEmitter）。 */
+    @Bean
+    public io.github.nianliu.archimedes.web.ArchimedesWatchController archimedesWatchController(
+            ArchimedesApiController apiController, ArchimedesApiProperties properties) {
+        return new io.github.nianliu.archimedes.web.ArchimedesWatchController(apiController, properties);
+    }
+
     /** 宿主存在 spring-websocket 时装配 handler 端点扫描（含 STOMP 握手端点识别）。 */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(WebSocketHandler.class) // classpath 有 WebSocketHandler 才说明引入了 spring-websocket

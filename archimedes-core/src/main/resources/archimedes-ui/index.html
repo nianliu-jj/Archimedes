@@ -700,17 +700,40 @@
 
     /* ---------- init ---------- */
 
+    /** 首次加载：fetch 拉取当前契约。 */
     fetch(API_URL)
         .then(function (r) { return r.json(); })
         .then(function (j) {
             catalog = j;
             populateMethodFilter();
             render();
+            // 首次加载成功后建立 SSE 热监听连接（自动接收后续更新）
+            startWatch();
         })
         .catch(function (e) {
             document.getElementById('restRows').innerHTML =
-                '<tr><td colspan="6">Failed to load: ' + esc(e) + '</td></tr>';
+                '<tr><td colspan="7">Failed to load: ' + esc(e) + '</td></tr>';
         });
+
+    /** SSE 热监听：建立 EventSource 连接，服务端检测到契约变化时自动推送更新。 */
+    function startWatch() {
+        if (typeof EventSource === 'undefined') { return; } // 浏览器不支持 SSE 时静默降级
+        var watchUrl = BASE_URL + '/watch';
+        var es = new EventSource(watchUrl);
+        es.addEventListener('catalog', function (event) {
+            try {
+                var j = JSON.parse(event.data);
+                catalog = j;
+                populateMethodFilter();
+                render();
+            } catch (e) {
+                // 解析失败静默忽略，等下一次推送
+            }
+        });
+        es.onerror = function () {
+            // EventSource 内置自动重连机制，此处无需手动处理
+        };
+    }
 
     var initialTab = (location.hash || '').replace('#', '');
     switchTab(TABS.indexOf(initialTab) >= 0 ? initialTab : 'rest');

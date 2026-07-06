@@ -32,6 +32,9 @@ public class ArchimedesApiProperties {
     /** 非空时只扫描这些包前缀下的 Controller。 */
     private List<String> basePackages = new ArrayList<>();
 
+    /** 热监听推送间隔（秒），0 表示实时推送（每次请求都重新扫描比对），默认 0。 */
+    private int watchIntervalSeconds = 0;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -66,5 +69,14 @@ public class ArchimedesApiProperties {
     /** 设置扫描包前缀白名单；空列表表示不做包级过滤。 */
     public void setBasePackages(List<String> basePackages) {
         this.basePackages = basePackages;
+    }
+
+    public int getWatchIntervalSeconds() {
+        return watchIntervalSeconds;
+    }
+
+    /** 设置热监听推送间隔（秒），0=实时（默认）；大于 0 时按该频率定时比对推送。 */
+    public void setWatchIntervalSeconds(int watchIntervalSeconds) {
+        this.watchIntervalSeconds = watchIntervalSeconds;
     }
 }

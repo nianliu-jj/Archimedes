@@ -56,6 +56,11 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         return cache.get();
     }
 
+    /** 清除缓存，下次 scan() 时重新扫描（热监听功能使用：检测到路由表变化时刷新契约）。 */
+    public void invalidateCache() {
+        cache.set(null);
+    }
+
     /** 收集全部 ApiInfo 后按"首路径 → 首 HTTP 方法"稳定排序，输出为不可变列表方便安全共享。 */
     private List<ApiInfo> doScan() {
         List<ApiInfo> apis = new ArrayList<>();
