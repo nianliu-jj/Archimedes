@@ -44,6 +44,15 @@
 <body>
 <h1>Archimedes · API Explorer</h1>
 
+<!-- 认证栏：根据 security 配置显示不同认证输入方式（参考 Swagger UI 的 Authorize 弹窗） -->
+<div id="authBar" style="display:none;margin-bottom:12px;padding:8px 12px;background:#f8f9fa;border:1px solid #ddd;border-radius:4px;font-size:13px">
+    <strong>🔒 Authorize</strong>
+    <span id="authType" class="count"></span>
+    <span id="authInputs" style="margin-left:8px"></span>
+    <button onclick="saveAuth()" style="padding:3px 12px;font-size:12px;margin-left:6px">Apply</button>
+    <span id="authStatus" class="meta" style="margin-left:8px"></span>
+</div>
+
 <nav id="tabs">
     <button class="tab-btn" id="tabbtn-rest" onclick="switchTab('rest')">REST<span class="tab-badge" id="badge-rest">0</span></button>
     <button class="tab-btn" id="tabbtn-ws" onclick="switchTab('ws')">WebSocket<span class="tab-badge" id="badge-ws">0</span></button>
@@ -124,6 +133,8 @@
     var restRendered = [];
     var openTry = -1;
     var tryApi = null;
+    var securityConfig = null;  // {type, headerName, bearerPrefix, apiKeyIn, apiKeyName, saTokenName}
+    var authToken = '';         // 用户输入的认证 token/密码
 
     function esc(s) {
         return String(s).replace(/[&<>"']/g, function (c) {
@@ -529,6 +540,8 @@
         });
         var url = path + (qs.length ? (path.indexOf('?') >= 0 ? '&' : '?') + qs.join('&') : '');
         var headers = {};
+        // 注入认证头（Spring Security / Sa-Token 等）
+        injectAuthHeaders(headers);
         collectKv('tryHeaders').forEach(function (h) { headers[h.k] = h.v; });
         var opts = { method: method, headers: headers };
         var bodyEl = document.getElementById('tryBody');
@@ -537,6 +550,8 @@
             var ct = document.getElementById('tryCt').value.trim();
             if (ct) { headers['Content-Type'] = ct; }
         }
+        // 注入 API Key Query 参数（apiKeyIn=QUERY 时）
+        url = injectAuthQuery(url);
         var t0 = Date.now();
         document.getElementById('tryResult').innerHTML = '<span class="empty">sending...</span>';
         fetch(url, opts)
@@ -698,6 +713,89 @@
             });
     }
 
+    /* ---------- auth ---------- */
+
+    /** 加载安全认证配置并渲染认证栏。 */
+    function loadSecurityConfig() {
+        fetch(BASE_URL + '/security')
+            .then(function (r) { return r.json(); })
+            .then(function (cfg) {
+                securityConfig = cfg;
+                if (!cfg || cfg.type === 'NONE') { return; }
+                var bar = document.getElementById('authBar');
+                bar.style.display = '';
+                document.getElementById('authType').textContent = cfg.type;
+                var html = '';
+                if (cfg.type === 'BEARER' || cfg.type === 'SA_TOKEN') {
+                    html = '<input id="authTokenInput" placeholder="输入 Token" style="width:280px;padding:4px">';
+                } else if (cfg.type === 'BASIC') {
+                    html = '<input id="authUser" placeholder="用户名" style="width:120px;padding:4px">'
+                        + ' : <input id="authPass" placeholder="密码" type="password" style="width:120px;padding:4px">';
+                } else if (cfg.type === 'API_KEY') {
+                    html = '<input id="authTokenInput" placeholder="输入 API Key" style="width:280px;padding:4px">';
+                }
+                document.getElementById('authInputs').innerHTML = html;
+                // 尝试从 localStorage 恢复上次的 token
+                var saved = localStorage.getItem('archimedes_auth_token');
+                if (saved) {
+                    authToken = saved;
+                    var inp = document.getElementById('authTokenInput');
+                    if (inp) { inp.value = saved; }
+                    document.getElementById('authStatus').textContent = '✓ 已认证';
+                }
+            })
+            .catch(function () { /* 安全端点不存在或出错时静默降级 */ });
+    }
+
+    function saveAuth() {
+        if (!securityConfig) { return; }
+        if (securityConfig.type === 'BASIC') {
+            var u = document.getElementById('authUser').value;
+            var p = document.getElementById('authPass').value;
+            authToken = btoa(u + ':' + p); // Base64 编码
+        } else {
+            var inp = document.getElementById('authTokenInput');
+            authToken = inp ? inp.value.trim() : '';
+        }
+        localStorage.setItem('archimedes_auth_token', authToken);
+        document.getElementById('authStatus').textContent = authToken ? '✓ 已认证' : '未认证';
+    }
+
+    /** 在 try-it 的 fetch 请求中注入认证头（在 sendTryRequest 中调用）。 */
+    function injectAuthHeaders(headers) {
+        if (!securityConfig || !authToken) { return; }
+        switch (securityConfig.type) {
+            case 'BEARER':
+                headers[securityConfig.headerName || 'Authorization'] =
+                    (securityConfig.bearerPrefix || 'Bearer ') + authToken;
+                break;
+            case 'BASIC':
+                headers['Authorization'] = 'Basic ' + authToken;
+                break;
+            case 'API_KEY':
+                if (securityConfig.apiKeyIn === 'HEADER') {
+                    headers[securityConfig.headerName || securityConfig.apiKeyName || 'api_key'] = authToken;
+                }
+                // QUERY 方式在 URL 拼接中处理
+                break;
+            case 'SA_TOKEN':
+                // Sa-Token 默认从 header 传递 token
+                headers[securityConfig.saTokenName || 'satoken'] = authToken;
+                break;
+        }
+    }
+
+    /** 在 URL 中注入 API Key Query 参数（apiKeyIn=QUERY 时使用）。 */
+    function injectAuthQuery(url) {
+        if (!securityConfig || !authToken || securityConfig.type !== 'API_KEY'
+                || securityConfig.apiKeyIn !== 'QUERY') {
+            return url;
+        }
+        var paramName = securityConfig.apiKeyName || 'api_key';
+        var sep = url.indexOf('?') >= 0 ? '&' : '?';
+        return url + sep + encodeURIComponent(paramName) + '=' + encodeURIComponent(authToken);
+    }
+
     /* ---------- init ---------- */
 
     /** 首次加载：fetch 拉取当前契约。 */
@@ -709,6 +807,8 @@
             render();
             // 首次加载成功后建立 SSE 热监听连接（自动接收后续更新）
             startWatch();
+            // 加载安全认证配置（决定 UI 是否显示认证栏）
+            loadSecurityConfig();
         })
         .catch(function (e) {
             document.getElementById('restRows').innerHTML =

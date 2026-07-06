@@ -95,6 +95,13 @@ public class ArchimedesApiController {
         return new ApiCatalog(scanner.scan(), webSocketApis, rpcApis);
     }
 
+    /** 安全认证方案端点：UI 从此读取认证配置，决定显示何种认证输入框。 */
+    @GetMapping(value = "${archimedes.api.base-path:" + ArchimedesApiProperties.DEFAULT_BASE_PATH + "}/security",
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ArchimedesApiProperties.SecurityScheme securityScheme() {
+        return properties.getSecurity();
+    }
+
     /** 内置 UI 端点：ui-enabled=false 时返回 404，否则返回带注入 API 地址的 HTML 页面。 */
     @GetMapping(value = "${archimedes.api.base-path:" + ArchimedesApiProperties.DEFAULT_BASE_PATH + "}", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> ui() throws IOException {

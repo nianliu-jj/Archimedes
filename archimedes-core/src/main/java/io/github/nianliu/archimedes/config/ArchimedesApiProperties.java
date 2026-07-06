@@ -35,6 +35,9 @@ public class ArchimedesApiProperties {
     /** 热监听推送间隔（秒），0 表示实时推送（每次请求都重新扫描比对），默认 0。 */
     private int watchIntervalSeconds = 0;
 
+    /** 安全认证方案：配置后 UI 调试面板自动携带认证信息（类似 Swagger 的 Authorize 功能）。 */
+    private SecurityScheme security = new SecurityScheme();
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -78,5 +81,106 @@ public class ArchimedesApiProperties {
     /** 设置热监听推送间隔（秒），0=实时（默认）；大于 0 时按该频率定时比对推送。 */
     public void setWatchIntervalSeconds(int watchIntervalSeconds) {
         this.watchIntervalSeconds = watchIntervalSeconds;
+    }
+
+    public SecurityScheme getSecurity() {
+        return security;
+    }
+
+    public void setSecurity(SecurityScheme security) {
+        this.security = security;
+    }
+
+    /**
+     * 安全认证方案配置（参考 springdoc 中 Swagger 接入方式）。
+     * <ul>
+     *   <li>{@code type=BEARER}（默认）：UI 调试面板提供 Token 输入框，请求时自动携带
+     *       {@code Authorization: Bearer {token}} 头；适配 Spring Security JWT、Sa-Token 等</li>
+     *   <li>{@code type=BASIC}：提供用户名/密码输入，请求时携带 Basic auth 头</li>
+     *   <li>{@code type=API_KEY}：提供 Key 输入框，请求时在指定头或 Query 参数携带</li>
+     *   <li>{@code type=NONE}：关闭认证功能（UI 调试不携带认证信息）</li>
+     * </ul>
+     */
+    public static class SecurityScheme {
+
+        /** 认证类型（默认 NONE，即不携带认证信息）。 */
+        private SecurityType type = SecurityType.NONE;
+
+        /** Bearer/ApiKey 的头名称（默认 Authorization）。 */
+        private String headerName = "Authorization";
+
+        /** Bearer token 前缀（默认 "Bearer "）。 */
+        private String bearerPrefix = "Bearer ";
+
+        /** API Key 的传递位置（HEADER 或 QUERY，默认 HEADER）。 */
+        private String apiKeyIn = "HEADER";
+
+        /** API Key 的参数名（apiKeyIn=QUERY 时用作查询参数名）。 */
+        private String apiKeyName = "api_key";
+
+        /** Sa-Token 的 token 名称（默认 satoken，与 sa-token 配置一致）。 */
+        private String saTokenName = "satoken";
+
+        public SecurityType getType() {
+            return type;
+        }
+
+        public void setType(SecurityType type) {
+            this.type = type;
+        }
+
+        public String getHeaderName() {
+            return headerName;
+        }
+
+        public void setHeaderName(String headerName) {
+            this.headerName = headerName;
+        }
+
+        public String getBearerPrefix() {
+            return bearerPrefix;
+        }
+
+        public void setBearerPrefix(String bearerPrefix) {
+            this.bearerPrefix = bearerPrefix;
+        }
+
+        public String getApiKeyIn() {
+            return apiKeyIn;
+        }
+
+        public void setApiKeyIn(String apiKeyIn) {
+            this.apiKeyIn = apiKeyIn;
+        }
+
+        public String getApiKeyName() {
+            return apiKeyName;
+        }
+
+        public void setApiKeyName(String apiKeyName) {
+            this.apiKeyName = apiKeyName;
+        }
+
+        public String getSaTokenName() {
+            return saTokenName;
+        }
+
+        public void setSaTokenName(String saTokenName) {
+            this.saTokenName = saTokenName;
+        }
+    }
+
+    /** 认证类型枚举。 */
+    public enum SecurityType {
+        /** 不携带认证信息。 */
+        NONE,
+        /** Bearer Token（JWT/Sa-Token 等）：Authorization: Bearer {token}。 */
+        BEARER,
+        /** HTTP Basic 认证。 */
+        BASIC,
+        /** API Key（请求头或 Query 参数）。 */
+        API_KEY,
+        /** Sa-Token 专用：在 Cookie/Header 中携带 satoken={token}。 */
+        SA_TOKEN
     }
 }
