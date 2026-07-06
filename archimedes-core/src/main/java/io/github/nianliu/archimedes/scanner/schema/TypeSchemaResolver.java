@@ -237,6 +237,7 @@ public final class TypeSchemaResolver {
         return new FieldInfo(name, type, required, description, array, Collections.<FieldInfo>emptyList());
     }
 
+    /** 取 Type 的原始 Class：Class 直接返回，ParameterizedType 取 rawType；类型变量/通配符等返回 null。 */
     private static Class<?> rawClass(Type type) {
         if (type instanceof Class) {
             return (Class<?>) type;

@@ -32,9 +32,12 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public abstract class AbstractRestApiScanner implements RestApiContributor {
 
+    /** 参数名探测器：优先读 -parameters 编译信息，回退字节码 LocalVariableTable，供无注解 name 时兜底。 */
     private static final ParameterNameDiscoverer PARAM_NAME_DISCOVERER = new DefaultParameterNameDiscoverer();
 
     private final ArchimedesApiProperties properties;
+
+    /** 扫描结果缓存：契约在应用启动后不变，用 CAS 保证并发首扫只落一份不可变列表。 */
     private final AtomicReference<List<ApiInfo>> cache = new AtomicReference<>();
 
     protected AbstractRestApiScanner(ArchimedesApiProperties properties) {
@@ -48,10 +51,12 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         if (cached != null) {
             return cached;
         }
+        // CAS：并发首扫时可能多个线程各算一份，但只有一份被写入，其余作废；保证外部始终看到同一实例
         cache.compareAndSet(null, doScan());
         return cache.get();
     }
 
+    /** 收集全部 ApiInfo 后按"首路径 → 首 HTTP 方法"稳定排序，输出为不可变列表方便安全共享。 */
     private List<ApiInfo> doScan() {
         List<ApiInfo> apis = new ArrayList<>();
         collectApis(apis);
@@ -103,12 +108,19 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         return null;
     }
 
+    /**
+     * 排除规则：过滤不属于宿主业务契约的端点。
+     * 依次排除 Spring 默认错误控制器、Archimedes 自身端点（base-path 下）、/error 错误页；
+     * 若配置了 base-packages 白名单，则仅保留包前缀命中的控制器。
+     */
     private boolean isExcluded(ApiInfo info) {
         String controllerClass = info.getControllerClass();
+        // Spring Boot 自带的 BasicErrorController 非业务接口，恒排除
         if (controllerClass.contains("BasicErrorController")) {
             return true;
         }
         String basePath = properties.getBasePath();
+        // Archimedes 自身的 UI/API 端点挂在 base-path 下，避免自我扫描
         boolean underBasePath = info.getPaths().stream()
                 .anyMatch(p -> p.equals(basePath) || p.startsWith(basePath + "/"));
         if (underBasePath) {
@@ -120,12 +132,14 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
             return true;
         }
         List<String> basePackages = properties.getBasePackages();
+        // 配置了包白名单时，控制器类不在任一前缀下即排除
         if (basePackages != null && !basePackages.isEmpty()) {
             return basePackages.stream().noneMatch(controllerClass::startsWith);
         }
         return false;
     }
 
+    /** 逐个提取 handler 方法参数：先注入参数名探测器（供无注解 name 时兜底），再转 ParamInfo。 */
     private List<ParamInfo> extractParams(HandlerMethod handlerMethod) {
         List<ParamInfo> params = new ArrayList<>();
         for (MethodParameter parameter : handlerMethod.getMethodParameters()) {
@@ -135,6 +149,11 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         return params;
     }
 
+    /**
+     * 单参数 → ParamInfo：按 @RequestParam/@PathVariable/@RequestHeader/@RequestBody 注解逐一匹配，
+     * 归类到对应参数来源（QUERY/PATH/HEADER/BODY）；均未命中归为 OTHER。
+     * 参数名优先取注解显式 name/value，缺省回退方法签名参数名。
+     */
     private ParamInfo toParamInfo(MethodParameter parameter) {
         String type = parameter.getGenericParameterType().getTypeName();
         // 参数说明：Swagger @Parameter/@ApiParam 反射读取（宿主没用 Swagger 时为空串）
@@ -162,6 +181,7 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         return new ParamInfo(fallbackName(parameter), ParamSource.OTHER, type, false, description);
     }
 
+    /** 返回第一个非空字符串；全空返回空串。用于"注解 name → 注解 value → 参数名"的优先级回退。 */
     private static String firstNonEmpty(String... values) {
         for (String value : values) {
             if (value != null && !value.isEmpty()) {
@@ -171,6 +191,7 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         return "";
     }
 
+    /** 兜底参数名：取编译保留的参数名；探测不到（未开 -parameters 且无调试信息）时用 argN 占位。 */
     private static String fallbackName(MethodParameter parameter) {
         String name = parameter.getParameterName();
         return name != null ? name : "arg" + parameter.getParameterIndex();

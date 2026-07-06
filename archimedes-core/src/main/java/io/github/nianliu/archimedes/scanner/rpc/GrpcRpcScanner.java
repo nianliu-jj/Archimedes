@@ -18,9 +18,13 @@ import java.util.Map;
 /**
  * 扫描容器中的 gRPC BindableService Bean（@GrpcService 等集成注册的服务实现均为此类型），
  * 经 bindService() 读取 ServerServiceDefinition 提取契约。不要求 Server Reflection 或 gRPC Server 启动。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-06
  */
 public class GrpcRpcScanner implements RpcApiContributor {
 
+    /** 方法元数据键：记录 gRPC 方法调用类型（UNARY/SERVER_STREAMING 等）。 */
     static final String METADATA_METHOD_TYPE = "grpcMethodType";
 
     private final ApplicationContext applicationContext;
@@ -29,11 +33,13 @@ public class GrpcRpcScanner implements RpcApiContributor {
         this.applicationContext = applicationContext;
     }
 
+    /** 取容器中全部 BindableService，绑定后描述其服务定义，按服务名排序输出。 */
     @Override
     public List<RpcApiInfo> contribute() {
         List<RpcApiInfo> result = new ArrayList<>();
         Map<String, BindableService> beans = applicationContext.getBeansOfType(BindableService.class);
         for (BindableService service : beans.values()) {
+            // bindService() 是获取方法定义的标准入口，无需真正启动 gRPC Server
             ServerServiceDefinition definition = service.bindService();
             result.add(describe(definition));
         }
@@ -42,6 +48,7 @@ public class GrpcRpcScanner implements RpcApiContributor {
         return result;
     }
 
+    /** 遍历服务定义中的方法：记录调用类型元数据，解析请求/响应消息原型类名作为参数与返回类型。 */
     private RpcApiInfo describe(ServerServiceDefinition definition) {
         List<RpcMethodInfo> methods = new ArrayList<>();
         for (ServerMethodDefinition<?, ?> methodDef : definition.getMethods()) {
@@ -51,6 +58,7 @@ public class GrpcRpcScanner implements RpcApiContributor {
 
             String requestType = prototypeClassName(descriptor.getRequestMarshaller());
             String responseType = prototypeClassName(descriptor.getResponseMarshaller());
+            // gRPC 方法固定单请求消息，取不到原型时以空参数列表表示
             List<String> parameterTypes = requestType == null
                     ? Collections.<String>emptyList()
                     : Collections.singletonList(requestType);
@@ -63,6 +71,7 @@ public class GrpcRpcScanner implements RpcApiContributor {
                 definition.getServiceDescriptor().getName(), null, null, methods);
     }
 
+    /** 取裸方法名；老版本 descriptor 无 bareMethodName 时从全限定名（service/method）截取斜杠后段。 */
     private String bareMethodName(MethodDescriptor<?, ?> descriptor) {
         String bare = descriptor.getBareMethodName();
         if (bare != null) {

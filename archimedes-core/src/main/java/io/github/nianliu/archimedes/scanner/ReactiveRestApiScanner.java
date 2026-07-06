@@ -28,12 +28,14 @@ public class ReactiveRestApiScanner extends AbstractRestApiScanner {
 
     private final List<RequestMappingHandlerMapping> handlerMappings;
 
+    /** 注入所有 WebFlux 栈的 RequestMappingHandlerMapping。 */
     public ReactiveRestApiScanner(List<RequestMappingHandlerMapping> handlerMappings,
                                   ArchimedesApiProperties properties) {
         super(properties);
         this.handlerMappings = handlerMappings;
     }
 
+    /** 遍历响应式 handler 表，逐条转 ApiInfo；单条解析失败仅告警跳过，不中断整体扫描。 */
     @Override
     protected void collectApis(List<ApiInfo> sink) {
         for (RequestMappingHandlerMapping mapping : handlerMappings) {
@@ -41,12 +43,17 @@ public class ReactiveRestApiScanner extends AbstractRestApiScanner {
                 try {
                     addIfIncluded(sink, toApiInfo(entry.getKey(), entry.getValue()));
                 } catch (Exception ex) {
+                    // 单个响应式 handler 结构异常不应拖垮整份契约，降级为告警
                     log.warn("Archimedes: failed to parse reactive handler {}, skipped", entry.getValue(), ex);
                 }
             }
         }
     }
 
+    /**
+     * 从 WebFlux 的 RequestMappingInfo 抽取条件交由父类模板组装。
+     * 响应式栈路由固定使用 PathPattern，故直接读 PatternsCondition，无 Servlet 栈的 AntPathMatcher 回退。
+     */
     ApiInfo toApiInfo(RequestMappingInfo mappingInfo, HandlerMethod handlerMethod) {
         return buildApiInfo(handlerMethod,
                 mappingInfo.getPatternsCondition().getPatterns().stream()
