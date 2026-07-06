@@ -14,7 +14,11 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
- * javax 薄壳：trace 编排逻辑全部在 core 的 TraceContextManager。
+ * javax Servlet 栈的 traceId Filter 薄壳（SB2 侧）：与 boot3 TraceIdFilter 镜像，
+ * 仅 servlet API 包名为 javax。trace 编排逻辑委托 core {@link TraceContextManager}。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-06
  */
 public class TraceIdFilter implements Filter {
 
@@ -26,6 +30,7 @@ public class TraceIdFilter implements Filter {
         this.properties = properties;
     }
 
+    /** 核心过滤逻辑：非 HTTP 请求直接放行；HTTP 请求建立 trace 上下文并在 finally 中精准恢复 MDC。 */
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
