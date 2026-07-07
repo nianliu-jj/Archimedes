@@ -3,4 +3,5 @@ io.github.nianliu.archimedes.boot2.ArchimedesAutoConfiguration,\
 io.github.nianliu.archimedes.boot2.ArchimedesReactiveAutoConfiguration,\
 io.github.nianliu.archimedes.boot2.ArchimedesTraceAutoConfiguration,\
 io.github.nianliu.archimedes.boot2.ArchimedesLogAutoConfiguration,\
-io.github.nianliu.archimedes.boot2.ArchimedesConfigAutoConfiguration
+io.github.nianliu.archimedes.boot2.ArchimedesConfigAutoConfiguration,\
+io.github.nianliu.archimedes.boot2.ArchimedesSqlMonitorAutoConfiguration

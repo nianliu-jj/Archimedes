@@ -59,6 +59,7 @@
     <button class="tab-btn" id="tabbtn-rpc" onclick="switchTab('rpc')">RPC<span class="tab-badge" id="badge-rpc">0</span></button>
     <button class="tab-btn" id="tabbtn-tr" onclick="switchTab('tr')">TR<span class="tab-badge" id="badge-tr">0</span></button>
     <button class="tab-btn" id="tabbtn-config" onclick="switchTab('config')">Config<span class="tab-badge" id="badge-config">0</span></button>
+    <button class="tab-btn" id="tabbtn-db" onclick="switchTab('db')">DB<span class="tab-badge" id="badge-db">0</span></button>
     <button class="tab-btn" id="tabbtn-trace" onclick="switchTab('trace')">Trace Logs</button>
 </nav>
 
@@ -126,6 +127,46 @@
     </table>
 </section>
 
+<section class="panel" id="panel-db">
+    <div>
+        <input id="dbQ" placeholder="filter by sql / datasource / traceId..." oninput="renderDb()"
+               style="padding:8px;width:320px;font-size:14px;">
+        <button onclick="loadDb()" style="padding:8px 16px;font-size:14px;">Refresh</button>
+        <label style="font-size:13px;margin-left:8px;cursor:pointer">
+            <input type="checkbox" id="dbAuto" onchange="toggleDbAuto()"> auto refresh (5s)
+        </label>
+        <span class="count" id="dbCount"></span>
+    </div>
+    <div id="dbPools" style="margin-top:10px"></div>
+    <h3 style="font-size:14px;margin:14px 0 6px">SQL Stats <span class="count" id="dbStatCount"></span></h3>
+    <table>
+        <thead>
+        <tr><th>SQL</th><th style="width:10%">DataSource</th><th style="width:7%">Count</th>
+            <th style="width:8%">Avg(ms)</th><th style="width:8%">Max(ms)</th>
+            <th style="width:9%">Total(ms)</th><th style="width:7%">Errors</th></tr>
+        </thead>
+        <tbody id="dbStatRows"></tbody>
+    </table>
+    <h3 style="font-size:14px;margin:14px 0 6px">Slow SQL <span class="count" id="dbSlowCount"></span></h3>
+    <table>
+        <thead>
+        <tr><th style="width:9%">Time</th><th style="width:9%">DataSource</th><th>SQL</th>
+            <th style="width:12%">Params</th><th style="width:7%">ms</th><th style="width:6%">Rows</th>
+            <th style="width:12%">TraceId</th><th style="width:6%">Status</th></tr>
+        </thead>
+        <tbody id="dbSlowRows"></tbody>
+    </table>
+    <h3 style="font-size:14px;margin:14px 0 6px">Recent SQL <span class="count" id="dbRecentCount"></span></h3>
+    <table>
+        <thead>
+        <tr><th style="width:9%">Time</th><th style="width:9%">DataSource</th><th>SQL</th>
+            <th style="width:12%">Params</th><th style="width:7%">ms</th><th style="width:6%">Rows</th>
+            <th style="width:12%">TraceId</th><th style="width:6%">Status</th></tr>
+        </thead>
+        <tbody id="dbRecentRows"></tbody>
+    </table>
+</section>
+
 <section class="panel" id="panel-trace">
     <div>
         <input id="traceIdInput" placeholder="enter traceId to query logs..." style="padding:8px;width:320px;font-size:14px;">
@@ -143,7 +184,7 @@
 <script>
     var API_URL = "__ARCHIMEDES_API_URL__";
     var BASE_URL = API_URL.replace(/\/apis$/, '');
-    var TABS = ['rest', 'ws', 'rpc', 'tr', 'config', 'trace'];
+    var TABS = ['rest', 'ws', 'rpc', 'tr', 'config', 'db', 'trace'];
     var TR_PROTOCOLS = ['SOFA_TR', 'TRPC'];
     var catalog = { restApis: [], webSocketApis: [], rpcApis: [] };
     var currentTab = 'rest';
@@ -156,6 +197,9 @@
     var configData = null;      // /config 响应：{hotRefreshEnabled, dynamicKeys, propertySources}
     var configLoaded = false;   // 配置中心懒加载标记
     var configRowRefs = [];     // 渲染行 → {key, value, sensitive} 映射（编辑/应用时按下标取回）
+    var dbData = null;          // /db 响应：{slowSqlMillis, dataSources, sqlStats, recentSqls, slowSqls}
+    var dbLoaded = false;       // 数据库监控懒加载标记
+    var dbTimer = null;         // 自动刷新定时器句柄
 
     function esc(s) {
         return String(s).replace(/[&<>"']/g, function (c) {
@@ -172,12 +216,14 @@
             document.getElementById('tabbtn-' + t).className = 'tab-btn' + (t === name ? ' active' : '');
             document.getElementById('panel-' + t).className = 'panel' + (t === name ? ' active' : '');
         }
-        document.getElementById('q').style.display = (name === 'trace' || name === 'config') ? 'none' : '';
+        document.getElementById('q').style.display = (name === 'trace' || name === 'config' || name === 'db') ? 'none' : '';
         document.getElementById('restMethod').style.display = name === 'rest' ? '' : 'none';
         document.getElementById('chips-rpc').style.display = name === 'rpc' ? '' : 'none';
         document.getElementById('chips-tr').style.display = name === 'tr' ? '' : 'none';
         // 配置中心懒加载：首次切入时才拉取（避免无谓请求）
         if (name === 'config' && !configLoaded) { configLoaded = true; loadConfig(); }
+        // 数据库监控懒加载：首次切入时才拉取
+        if (name === 'db' && !dbLoaded) { dbLoaded = true; loadDb(); }
         if (history.replaceState) { history.replaceState(null, '', '#' + name); } else { location.hash = name; }
     }
 
@@ -863,6 +909,131 @@
         var el = document.getElementById('configStatus');
         el.textContent = text;
         el.style.color = isError ? '#c0392b' : '#0a7d38';
+    }
+
+    /* ---------- DB tab ---------- */
+
+    /** 拉取数据库监控总览并渲染。 */
+    function loadDb() {
+        fetch(BASE_URL + '/db')
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                dbData = j;
+                renderDb();
+            })
+            .catch(function (e) {
+                document.getElementById('dbStatRows').innerHTML =
+                    '<tr><td colspan="7">Failed to load: ' + esc(e) + '</td></tr>';
+            });
+    }
+
+    /** 自动刷新开关：仅 DB Tab 激活时轮询，避免后台空转。 */
+    function toggleDbAuto() {
+        if (dbTimer) { clearInterval(dbTimer); dbTimer = null; }
+        if (document.getElementById('dbAuto').checked) {
+            dbTimer = setInterval(function () {
+                if (currentTab === 'db') { loadDb(); }
+            }, 5000);
+        }
+    }
+
+    function fmtTime(epochMillis) {
+        if (!epochMillis) { return '-'; }
+        var d = new Date(epochMillis);
+        function p(n) { return n < 10 ? '0' + n : '' + n; }
+        return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+    }
+
+    /** 渲染池状态卡片 + 三张明细/统计表，支持文本过滤。 */
+    function renderDb() {
+        if (!dbData) { return; }
+        var q = document.getElementById('dbQ').value.toLowerCase();
+        renderDbPools();
+        renderDbStats(q);
+        renderDbRecords('dbSlowRows', 'dbSlowCount', dbData.slowSqls || [], q);
+        renderDbRecords('dbRecentRows', 'dbRecentCount', dbData.recentSqls || [], q);
+        document.getElementById('badge-db').textContent = (dbData.sqlStats || []).length;
+        document.getElementById('dbCount').textContent =
+            ' slow threshold: ' + dbData.slowSqlMillis + ' ms';
+    }
+
+    /** 池状态卡片：每数据源一张（Hikari 指标或"无池指标"降级提示）。 */
+    function renderDbPools() {
+        var sources = dbData.dataSources || [];
+        if (!sources.length) {
+            document.getElementById('dbPools').innerHTML =
+                '<span class="empty">no monitored datasource (no DataSource bean or excluded)</span>';
+            return;
+        }
+        document.getElementById('dbPools').innerHTML = sources.map(function (s) {
+            var pool = s.pool;
+            var metrics;
+            if (pool) {
+                metrics = '<span class="kind">' + esc(pool.type || 'pool') + '</span> '
+                    + ' active <b>' + esc(pool.activeConnections != null ? pool.activeConnections : '-') + '</b>'
+                    + ' · idle <b>' + esc(pool.idleConnections != null ? pool.idleConnections : '-') + '</b>'
+                    + ' · awaiting <b>' + esc(pool.threadsAwaitingConnection != null ? pool.threadsAwaitingConnection : '-') + '</b>'
+                    + ' · total <b>' + esc(pool.totalConnections != null ? pool.totalConnections : '-') + '</b>'
+                    + ' · max <b>' + esc(pool.maximumPoolSize != null ? pool.maximumPoolSize : '-') + '</b>'
+                    + ' · minIdle <b>' + esc(pool.minimumIdle != null ? pool.minimumIdle : '-') + '</b>';
+            } else {
+                metrics = '<span class="meta">no pool metrics (non-Hikari or pool not started)</span>';
+            }
+            return '<div style="display:inline-block;border:1px solid #ddd;border-radius:4px;'
+                + 'padding:8px 14px;margin:0 8px 8px 0;background:#fafbfd;font-size:13px">'
+                + '<b>' + esc(s.name) + '</b> <span class="meta">' + esc(s.targetType.split('.').pop()) + '</span><br>'
+                + metrics + '</div>';
+        }).join('');
+    }
+
+    function renderDbStats(q) {
+        var all = dbData.sqlStats || [];
+        var rows = all.filter(function (s) {
+            return (s.sql + ' ' + s.dataSource).toLowerCase().indexOf(q) >= 0;
+        });
+        document.getElementById('dbStatCount').textContent = ' (' + rows.length + '/' + all.length + ')';
+        document.getElementById('dbStatRows').innerHTML = rows.length === 0
+            ? '<tr><td colspan="7" class="empty">no sql executed yet</td></tr>'
+            : rows.map(function (s) {
+                return '<tr>'
+                    + '<td><code>' + esc(s.sql) + '</code></td>'
+                    + '<td>' + esc(s.dataSource) + '</td>'
+                    + '<td>' + esc(s.executionCount) + '</td>'
+                    + '<td>' + esc(s.avgMillis) + '</td>'
+                    + '<td>' + esc(s.maxMillis) + '</td>'
+                    + '<td>' + esc(s.totalMillis) + '</td>'
+                    + '<td>' + (s.errorCount > 0 ? '<span class="status-err">' + esc(s.errorCount) + '</span>' : '0') + '</td>'
+                    + '</tr>';
+            }).join('');
+    }
+
+    /** 明细行渲染（Slow 与 Recent 复用）：traceId 可点击联动链路日志查询。 */
+    function renderDbRecords(tbodyId, countId, all, q) {
+        var rows = all.filter(function (r) {
+            return (r.sql + ' ' + r.dataSource + ' ' + (r.traceId || '')).toLowerCase().indexOf(q) >= 0;
+        });
+        document.getElementById(countId).textContent = ' (' + rows.length + '/' + all.length + ')';
+        document.getElementById(tbodyId).innerHTML = rows.length === 0
+            ? '<tr><td colspan="8" class="empty">none</td></tr>'
+            : rows.map(function (r) {
+                var status = r.success
+                    ? '<span class="status-ok">OK</span>'
+                    : '<span class="status-err" title="' + esc(r.errorMessage || '') + '">FAIL</span>';
+                var traceCell = r.traceId
+                    ? '<a href="javascript:void(0)" onclick="jumpToTrace(this.textContent)" '
+                        + 'style="color:#1a56b0"><code>' + esc(r.traceId) + '</code></a>'
+                    : '<span class="meta">-</span>';
+                return '<tr' + (r.slow ? ' style="background:#fff4f2"' : '') + '>'
+                    + '<td><code>' + fmtTime(r.startTime) + '</code></td>'
+                    + '<td>' + esc(r.dataSource) + '</td>'
+                    + '<td><code>' + esc(r.sql) + '</code></td>'
+                    + '<td class="meta">' + esc(r.params ? r.params.join(', ') : '') + '</td>'
+                    + '<td class="m">' + esc(r.durationMillis) + '</td>'
+                    + '<td>' + (r.rows < 0 ? '-' : esc(r.rows)) + '</td>'
+                    + '<td>' + traceCell + '</td>'
+                    + '<td>' + status + '</td>'
+                    + '</tr>';
+            }).join('');
     }
 
     /* ---------- auth ---------- */

@@ -82,6 +82,12 @@
             <version>${grpc.version}</version>
             <optional>true</optional>
         </dependency>
+        <!-- Hikari 池指标贡献者编译面（HikariDataSource/HikariPoolMXBean 在 4.x 与 5.x 一致），版本走 SB2.7 BOM -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <optional>true</optional>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -91,6 +97,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- JDBC 代理链路单测用内存库 -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

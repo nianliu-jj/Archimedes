@@ -11,6 +11,7 @@
 - **跨线程 MDC 传递** — Spring 容器管理的线程池自动覆盖，`@Async` / `ExecutorService` / `ScheduledExecutorService` 开箱即用
 - **链路日志采集与查询** — Logback 环境下自动挂载结构化采集 Appender，按 traceId 查询完整链路日志
 - **配置中心** — 全量配置可视化（来源标注 + 敏感值脱敏）与运行时热更新（动态属性源 + `@ConfigurationProperties` 重绑定 + 事件联动）
+- **数据库监控** — DataSource 零侵入代理：SQL 明细（语句/参数/耗时/行数/异常/traceId 关联）、聚合统计与慢 SQL、HikariCP 连接池指标、多数据源
 - **双端兼容** — 同时支持 Spring Boot 2.7.x（javax）与 3.x（jakarta），Servlet 与 WebFlux 双栈
 
 ## 模块结构
@@ -59,6 +60,7 @@ archimedes-parent
 | `GET /archimedes/trace/current` | 当前请求的 traceId |
 | `GET /archimedes/config` | 全量配置查询（按属性源分组、敏感值脱敏） |
 | `POST /archimedes/config/update` | 配置热更新（body `{key, value}`；value 缺省=删除覆盖恢复原值） |
+| `GET /archimedes/db` | 数据库监控（连接池指标 + SQL 统计 + 最近执行 + 慢 SQL） |
 
 ## 版本矩阵
 
@@ -201,6 +203,26 @@ archimedes:
 - **事件联动**：每次变更发布 `ArchimedesConfigChangedEvent`；classpath 存在 Spring Cloud 时同步发布 `EnvironmentChangeEvent` 联动 `@RefreshScope` 生态（零编译依赖，反射可选发布）。
 - **边界声明**：动态覆盖仅存于内存，**不持久化**——应用重启后恢复为底层配置源原值；不写回 application.properties 文件。热更新适用于开发/联调场景，生产环境建议关闭或配合安全框架收敛访问。
 
+### 数据库监控
+
+```yaml
+archimedes:
+  sql:
+    enabled: true             # SQL 监控总开关（关闭后数据源不包装、端点不装配）
+    slow-sql-millis: 1000     # 慢 SQL 阈值（毫秒），耗时 >= 阈值判为慢
+    max-history-size: 500     # 最近执行 / 慢 SQL 环形缓冲各自上限
+    capture-parameters: true  # 是否采集绑定参数（可能含敏感数据，可关）
+    exclude-beans: []         # 按 Bean 名排除不包装的数据源（逃生口）
+    max-sql-stats: 1000       # 去重 SQL 聚合条目上限（防动态拼接 SQL 撑爆内存）
+```
+
+- **零侵入接入**：`BeanPostProcessor` 自动将容器内全部 `DataSource` Bean 包装为标准 JDBC 代理（类似 Druid Filter/p6spy），拦截 Statement/PreparedStatement 执行。
+- **SQL 明细**：语句（空白归一化）、绑定参数、耗时、类型（QUERY/UPDATE/BATCH/EXECUTE）、行数（查询经 ResultSet 计数、更新取影响行数）、异常信息，以及执行线程的 **traceId**——UI 中可一键跳转该链路的日志时间线。
+- **聚合统计**：按「数据源 + 归一化 SQL」聚合执行次数/总耗时/平均/最大/失败次数；慢 SQL 单独成列。
+- **连接池指标**：`PoolMetricsContributor` SPI；classpath 存在 HikariCP（Boot 默认池）时自动输出活跃/空闲/等待/总连接与池配置，其它连接池可自行实现 SPI 接入。
+- **多数据源**：按 Bean 名区分，端点与 UI 全部纳入。
+- **边界声明**：仅监控 JDBC `DataSource`（R2DBC 不支持）；包装后注入方拿到的是代理对象——`unwrap()` 全量透传保证 Boot/actuator/Flyway 等经 Wrapper 链可达原生实现，但**按 `HikariDataSource` 具体类型注入**的代码需用 `exclude-beans` 排除；监控数据存内存，重启清零。
+
 ## 扩展点
 
 | 扩展点 | 机制 | 用途 |
@@ -227,10 +249,11 @@ mvn -pl example-all -am spring-boot:run      # 全功能演示 → http://localh
 
 访问 `{base-path}` 即可打开 API Explorer 页面，功能包括：
 
-- **协议分 Tab** — REST / WebSocket / RPC / TR / Config / Trace Logs
+- **协议分 Tab** — REST / WebSocket / RPC / TR / Config / DB / Trace Logs
 - **文本过滤** — 按路径、方法名等快速搜索
 - **REST 方法筛选** — 按 GET / POST / PUT / DELETE 等 HTTP 方法过滤
 - **RPC 协议筛选** — 按 Dubbo / gRPC / SOFA_TR / TRPC 过滤
 - **在线调试** — REST 条目展开后按契约预填参数发起请求，响应携带 trace 头时一键跳转链路日志查询
 - **请求/响应结构展示** — 字段说明表与示例 JSON 预填
 - **配置中心** — 按属性源分组浏览全量配置（动态覆盖高亮）、搜索过滤、行内编辑热更新、一键移除覆盖恢复原值
+- **数据库监控** — 连接池状态卡片、SQL 统计表、最近执行/慢 SQL 列表（traceId 可点击联动链路日志）、手动/自动刷新

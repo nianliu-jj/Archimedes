@@ -112,6 +112,17 @@
             <version>${dubbo.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- SQL 监控 e2e：starter-jdbc 带 HikariCP（Boot 默认池）+ H2 内存库 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

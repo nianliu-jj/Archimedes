@@ -77,6 +77,17 @@
             <artifactId>jakarta.validation-api</artifactId>
         </dependency>
 
+        <!-- SQL 监控演示：JDBC（Hikari 默认池）+ H2 内存库 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
