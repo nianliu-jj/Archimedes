@@ -58,6 +58,7 @@
     <button class="tab-btn" id="tabbtn-ws" onclick="switchTab('ws')">WebSocket<span class="tab-badge" id="badge-ws">0</span></button>
     <button class="tab-btn" id="tabbtn-rpc" onclick="switchTab('rpc')">RPC<span class="tab-badge" id="badge-rpc">0</span></button>
     <button class="tab-btn" id="tabbtn-tr" onclick="switchTab('tr')">TR<span class="tab-badge" id="badge-tr">0</span></button>
+    <button class="tab-btn" id="tabbtn-config" onclick="switchTab('config')">Config<span class="tab-badge" id="badge-config">0</span></button>
     <button class="tab-btn" id="tabbtn-trace" onclick="switchTab('trace')">Trace Logs</button>
 </nav>
 
@@ -108,6 +109,23 @@
     <span class="count" id="trCount"></span>
 </section>
 
+<section class="panel" id="panel-config">
+    <div>
+        <input id="configQ" placeholder="filter by key / value / source..." oninput="renderConfig()"
+               style="padding:8px;width:320px;font-size:14px;">
+        <button onclick="loadConfig()" style="padding:8px 16px;font-size:14px;">Refresh</button>
+        <span class="count" id="configCount"></span>
+        <span id="configHotDisabled" class="meta" style="color:#c0392b"></span>
+        <span id="configStatus" class="meta" style="margin-left:8px"></span>
+    </div>
+    <table style="margin-top:8px;">
+        <thead>
+        <tr><th style="width:32%">Key</th><th>Value</th><th style="width:22%">Source</th><th style="width:150px">Actions</th></tr>
+        </thead>
+        <tbody id="configRows"><tr><td colspan="4" class="empty">loading...</td></tr></tbody>
+    </table>
+</section>
+
 <section class="panel" id="panel-trace">
     <div>
         <input id="traceIdInput" placeholder="enter traceId to query logs..." style="padding:8px;width:320px;font-size:14px;">
@@ -125,7 +143,7 @@
 <script>
     var API_URL = "__ARCHIMEDES_API_URL__";
     var BASE_URL = API_URL.replace(/\/apis$/, '');
-    var TABS = ['rest', 'ws', 'rpc', 'tr', 'trace'];
+    var TABS = ['rest', 'ws', 'rpc', 'tr', 'config', 'trace'];
     var TR_PROTOCOLS = ['SOFA_TR', 'TRPC'];
     var catalog = { restApis: [], webSocketApis: [], rpcApis: [] };
     var currentTab = 'rest';
@@ -135,6 +153,9 @@
     var tryApi = null;
     var securityConfig = null;  // {type, headerName, bearerPrefix, apiKeyIn, apiKeyName, saTokenName}
     var authToken = '';         // 用户输入的认证 token/密码
+    var configData = null;      // /config 响应：{hotRefreshEnabled, dynamicKeys, propertySources}
+    var configLoaded = false;   // 配置中心懒加载标记
+    var configRowRefs = [];     // 渲染行 → {key, value, sensitive} 映射（编辑/应用时按下标取回）
 
     function esc(s) {
         return String(s).replace(/[&<>"']/g, function (c) {
@@ -151,10 +172,12 @@
             document.getElementById('tabbtn-' + t).className = 'tab-btn' + (t === name ? ' active' : '');
             document.getElementById('panel-' + t).className = 'panel' + (t === name ? ' active' : '');
         }
-        document.getElementById('q').style.display = name === 'trace' ? 'none' : '';
+        document.getElementById('q').style.display = (name === 'trace' || name === 'config') ? 'none' : '';
         document.getElementById('restMethod').style.display = name === 'rest' ? '' : 'none';
         document.getElementById('chips-rpc').style.display = name === 'rpc' ? '' : 'none';
         document.getElementById('chips-tr').style.display = name === 'tr' ? '' : 'none';
+        // 配置中心懒加载：首次切入时才拉取（避免无谓请求）
+        if (name === 'config' && !configLoaded) { configLoaded = true; loadConfig(); }
         if (history.replaceState) { history.replaceState(null, '', '#' + name); } else { location.hash = name; }
     }
 
@@ -711,6 +734,135 @@
                 document.getElementById('traceRows').innerHTML =
                     '<tr><td colspan="5">Failed to load: ' + esc(e) + '</td></tr>';
             });
+    }
+
+    /* ---------- Config tab ---------- */
+
+    /** 拉取全量配置快照并渲染。 */
+    function loadConfig() {
+        fetch(BASE_URL + '/config')
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                configData = j;
+                renderConfig();
+            })
+            .catch(function (e) {
+                document.getElementById('configRows').innerHTML =
+                    '<tr><td colspan="4">Failed to load: ' + esc(e) + '</td></tr>';
+            });
+    }
+
+    /** 渲染配置表：按属性源分组（动态覆盖源高亮），支持 key/value/来源 文本过滤。 */
+    function renderConfig() {
+        if (!configData) { return; }
+        var q = document.getElementById('configQ').value.toLowerCase();
+        var hot = !!configData.hotRefreshEnabled;
+        document.getElementById('configHotDisabled').textContent =
+            hot ? '' : 'hot refresh disabled (archimedes.config.hot-refresh-enabled=false)';
+        var dynamicKeys = configData.dynamicKeys || [];
+        var sources = configData.propertySources || [];
+        configRowRefs = [];
+        var html = '', shown = 0, total = 0;
+        for (var i = 0; i < sources.length; i++) {
+            var src = sources[i];
+            var isDynSrc = src.name === 'archimedesDynamicConfig';
+            var entries = src.entries || [];
+            total += entries.length;
+            var rows = '';
+            for (var j = 0; j < entries.length; j++) {
+                var en = entries[j];
+                var hay = (en.key + ' ' + (en.value || '') + ' ' + src.name).toLowerCase();
+                if (hay.indexOf(q) < 0) { continue; }
+                shown++;
+                var idx = configRowRefs.length;
+                configRowRefs.push({ key: en.key, value: en.value, sensitive: en.sensitive });
+                var overridden = isDynSrc && dynamicKeys.indexOf(en.key) >= 0;
+                var actions = '';
+                if (hot) {
+                    // 热更新开启才提供编辑；动态覆盖项额外提供移除（恢复原值）
+                    actions = '<button class="try-btn" onclick="editConfig(' + idx + ')">Edit</button>'
+                        + (overridden
+                            ? ' <button class="try-btn" onclick="removeConfig(' + idx + ')">Remove</button>'
+                            : '');
+                }
+                rows += '<tr' + (overridden ? ' style="background:#fffbe8"' : '') + '>'
+                    + '<td><code>' + esc(en.key) + '</code>'
+                        + (en.sensitive ? ' <span class="kind" style="background:#fde8e8;color:#8a2c2c">sensitive</span>' : '')
+                    + '</td>'
+                    + '<td id="cfgv-' + idx + '">' + esc(en.value === null || en.value === undefined ? '' : en.value) + '</td>'
+                    + '<td class="meta">' + esc(src.name) + '</td>'
+                    + '<td>' + actions + '</td>'
+                    + '</tr>';
+            }
+            if (rows) {
+                html += '<tr><td colspan="4" style="background:' + (isDynSrc ? '#fff3cd' : '#eef2f7')
+                    + ';font-weight:600;font-size:13px;padding:8px">' + esc(src.name)
+                    + (isDynSrc ? ' <span class="kind" style="background:#f7c948;color:#5a4500">dynamic override</span>' : '')
+                    + '</td></tr>' + rows;
+            }
+        }
+        document.getElementById('configCount').textContent = ' (' + shown + '/' + total + ')';
+        document.getElementById('badge-config').textContent = total;
+        document.getElementById('configRows').innerHTML =
+            html || '<tr><td colspan="4" class="empty">no config entries</td></tr>';
+    }
+
+    /** 行内编辑：把值单元格替换为输入框 + Apply/Cancel；敏感值不回填明文，留空输入新值。 */
+    function editConfig(idx) {
+        var ref = configRowRefs[idx];
+        var cell = document.getElementById('cfgv-' + idx);
+        if (!cell) { return; }
+        var initial = ref.sensitive ? '' : (ref.value === null || ref.value === undefined ? '' : ref.value);
+        cell.innerHTML = '<input id="cfge-' + idx + '" value="' + esc(initial) + '"'
+            + (ref.sensitive ? ' placeholder="(masked — enter new value)"' : '')
+            + ' style="width:70%;padding:4px 6px;font-size:12px">'
+            + ' <button class="send-btn" style="padding:3px 12px" onclick="applyConfig(' + idx + ')">Apply</button>'
+            + ' <button class="try-btn" onclick="renderConfig()">Cancel</button>';
+        document.getElementById('cfge-' + idx).focus();
+    }
+
+    /** 应用编辑：调用热更新端点写入动态覆盖。 */
+    function applyConfig(idx) {
+        var input = document.getElementById('cfge-' + idx);
+        if (!input) { return; }
+        postConfigUpdate(configRowRefs[idx].key, input.value);
+    }
+
+    /** 移除动态覆盖（value 缺省 = 删除语义，恢复底层原值）。 */
+    function removeConfig(idx) {
+        postConfigUpdate(configRowRefs[idx].key, null);
+    }
+
+    function postConfigUpdate(key, value) {
+        var payload = value === null ? { key: key } : { key: key, value: String(value) };
+        setConfigStatus('applying ' + key + ' ...', false);
+        fetch(BASE_URL + '/config/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(function (r) {
+                return r.json().then(function (j) { return { ok: r.ok, body: j }; });
+            })
+            .then(function (res) {
+                if (res.ok) {
+                    setConfigStatus('✓ applied: ' + key
+                        + (res.body.refreshedBeans && res.body.refreshedBeans.length
+                            ? ' (rebound: ' + res.body.refreshedBeans.join(', ') + ')' : ''), false);
+                } else {
+                    setConfigStatus('✗ ' + (res.body && res.body.error ? res.body.error : 'update failed'), true);
+                }
+                loadConfig(); // 无论成败都刷新（拿到最新 dynamicKeys 与生效值）
+            })
+            .catch(function (e) {
+                setConfigStatus('✗ request failed: ' + e, true);
+            });
+    }
+
+    function setConfigStatus(text, isError) {
+        var el = document.getElementById('configStatus');
+        el.textContent = text;
+        el.style.color = isError ? '#c0392b' : '#0a7d38';
     }
 
     /* ---------- auth ---------- */

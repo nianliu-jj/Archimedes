@@ -20,3 +20,13 @@ dubbo:
   protocol:
     name: dubbo
     port: -1                 # 随机协议端口
+
+# ---- 配置中心演示项（Config Tab）----
+# demo.app.*：在 UI 配置中心可查看/热更新（编辑后立即生效，重启恢复）
+# demo.datasource.password：命中默认敏感关键字，UI 展示为 ******
+demo:
+  app:
+    greeting: hello-archimedes
+    feature-flag: true
+  datasource:
+    password: super-secret-123

@@ -10,6 +10,7 @@
 - **全链路 traceId** — 每请求自动建立 trace 上下文，支持自定义生成算法与解析策略
 - **跨线程 MDC 传递** — Spring 容器管理的线程池自动覆盖，`@Async` / `ExecutorService` / `ScheduledExecutorService` 开箱即用
 - **链路日志采集与查询** — Logback 环境下自动挂载结构化采集 Appender，按 traceId 查询完整链路日志
+- **配置中心** — 全量配置可视化（来源标注 + 敏感值脱敏）与运行时热更新（动态属性源 + `@ConfigurationProperties` 重绑定 + 事件联动）
 - **双端兼容** — 同时支持 Spring Boot 2.7.x（javax）与 3.x（jakarta），Servlet 与 WebFlux 双栈
 
 ## 模块结构
@@ -35,14 +36,14 @@ archimedes-parent
 <dependency>
     <groupId>io.github.nianliu</groupId>
     <artifactId>archimedes-spring-boot-3-starter</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.1-SNAPSHOT</version>
 </dependency>
 
 <!-- Spring Boot 2.7.x -->
 <dependency>
     <groupId>io.github.nianliu</groupId>
     <artifactId>archimedes-spring-boot-2-starter</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.1-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -56,6 +57,8 @@ archimedes-parent
 | `GET /archimedes/apis` | 接口契约 JSON（包含 REST / WebSocket / RPC 分组） |
 | `GET /archimedes/logs/trace/{traceId}` | 按 traceId 查询链路日志 |
 | `GET /archimedes/trace/current` | 当前请求的 traceId |
+| `GET /archimedes/config` | 全量配置查询（按属性源分组、敏感值脱敏） |
+| `POST /archimedes/config/update` | 配置热更新（body `{key, value}`；value 缺省=删除覆盖恢复原值） |
 
 ## 版本矩阵
 
@@ -183,6 +186,21 @@ archimedes:
     max-file-size: 100MB     # 单文件大小
 ```
 
+### 配置中心
+
+```yaml
+archimedes:
+  config:
+    enabled: true              # 配置中心总开关（关闭后端点与相关 Bean 均不装配）
+    hot-refresh-enabled: true  # 热更新开关（false = 只读模式，update 端点返回 403）
+    sensitive-keys: password,secret,token,credential,key  # 敏感键关键字（contains 匹配，配置后整体替换）
+```
+
+- **配置查询**：`GET {base-path}/config` 按 Environment 优先级枚举全部可枚举属性源，标注每项配置的来源；命中敏感关键字的值统一脱敏为 `******`。
+- **热更新**：`POST {base-path}/config/update` 写入最高优先级动态属性源，`environment.getProperty()` 立即生效；prefix 命中的 `@ConfigurationProperties` Bean 自动**原地重绑定**（构造器绑定的不可变 Bean 无法刷新，跳过并 WARN）。
+- **事件联动**：每次变更发布 `ArchimedesConfigChangedEvent`；classpath 存在 Spring Cloud 时同步发布 `EnvironmentChangeEvent` 联动 `@RefreshScope` 生态（零编译依赖，反射可选发布）。
+- **边界声明**：动态覆盖仅存于内存，**不持久化**——应用重启后恢复为底层配置源原值；不写回 application.properties 文件。热更新适用于开发/联调场景，生产环境建议关闭或配合安全框架收敛访问。
+
 ## 扩展点
 
 | 扩展点 | 机制 | 用途 |
@@ -209,9 +227,10 @@ mvn -pl example-all -am spring-boot:run      # 全功能演示 → http://localh
 
 访问 `{base-path}` 即可打开 API Explorer 页面，功能包括：
 
-- **协议分 Tab** — REST / WebSocket / RPC / TR / Trace Logs
+- **协议分 Tab** — REST / WebSocket / RPC / TR / Config / Trace Logs
 - **文本过滤** — 按路径、方法名等快速搜索
 - **REST 方法筛选** — 按 GET / POST / PUT / DELETE 等 HTTP 方法过滤
 - **RPC 协议筛选** — 按 Dubbo / gRPC / SOFA_TR / TRPC 过滤
 - **在线调试** — REST 条目展开后按契约预填参数发起请求，响应携带 trace 头时一键跳转链路日志查询
 - **请求/响应结构展示** — 字段说明表与示例 JSON 预填
+- **配置中心** — 按属性源分组浏览全量配置（动态覆盖高亮）、搜索过滤、行内编辑热更新、一键移除覆盖恢复原值
