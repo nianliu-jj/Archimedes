@@ -25,6 +25,9 @@ public class WsApiInfo {
 
     private boolean sockJs;
 
+    /** 端点描述（读 handler 类/方法上的 @ApiDoc；可为 null）。 */
+    private String description;
+
     public WsApiInfo() {
     }
 
@@ -74,5 +77,14 @@ public class WsApiInfo {
 
     public void setSockJs(boolean sockJs) {
         this.sockJs = sockJs;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    /** 设置端点描述。 */
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

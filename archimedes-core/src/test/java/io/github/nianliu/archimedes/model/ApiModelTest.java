@@ -29,4 +29,19 @@ class ApiModelTest {
         assertThat(api.getParams().get(0).getName()).isEqualTo("id");
         assertThat(api.getParams().get(0).isRequired()).isTrue();
     }
+
+    @Test
+    void rpcAndWsCarryDescription() {
+        RpcApiInfo svc = new RpcApiInfo(RpcApiInfo.PROTOCOL_DUBBO, "com.demo.S", null, null, null);
+        svc.setDescription("定价服务");
+        assertThat(svc.getDescription()).isEqualTo("定价服务");
+
+        RpcMethodInfo m = new RpcMethodInfo("price", null, "java.math.BigDecimal");
+        m.setDescription("计算价格");
+        assertThat(m.getDescription()).isEqualTo("计算价格");
+
+        WsApiInfo ws = new WsApiInfo(WsApiInfo.KIND_HANDLER, "/ws/echo", "EchoHandler", null, false);
+        ws.setDescription("回声端点");
+        assertThat(ws.getDescription()).isEqualTo("回声端点");
+    }
 }

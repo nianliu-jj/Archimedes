@@ -40,6 +40,9 @@ public class RpcApiInfo {
     /** 协议特有的服务级扩展元数据，可为 null。 */
     private Map<String, String> metadata;
 
+    /** 服务级描述（读服务接口类的 @ApiModule#description；可为 null）。 */
+    private String description;
+
     public RpcApiInfo() {
     }
 
@@ -106,5 +109,14 @@ public class RpcApiInfo {
 
     public void setMetadata(Map<String, String> metadata) {
         this.metadata = metadata;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    /** 设置服务级描述。 */
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

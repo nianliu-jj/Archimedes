@@ -24,6 +24,9 @@ public class RpcMethodInfo {
     /** 协议特有的方法级扩展元数据（如 gRPC streaming 形态），可为 null。 */
     private Map<String, String> metadata;
 
+    /** 方法级描述（读方法上的 @ApiDoc；可为 null）。 */
+    private String description;
+
     public RpcMethodInfo() {
     }
 
@@ -76,5 +79,14 @@ public class RpcMethodInfo {
     /** 设置协议特有扩展元数据。 */
     public void setMetadata(Map<String, String> metadata) {
         this.metadata = metadata;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    /** 设置方法级描述。 */
+    public void setDescription(String description) {
+        this.description = description;
     }
 }
