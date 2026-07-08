@@ -1,6 +1,5 @@
 package io.github.nianliu.archimedes.scanner.rpc;
 
-import io.github.nianliu.archimedes.annotation.ApiDoc;
 import io.github.nianliu.archimedes.model.RpcApiInfo;
 import io.github.nianliu.archimedes.model.RpcMethodInfo;
 import io.github.nianliu.archimedes.scanner.schema.TypeSchemaResolver;
@@ -58,13 +57,8 @@ public class DubboRpcScanner implements RpcApiContributor {
                 }
                 RpcMethodInfo mi = new RpcMethodInfo(method.getName(), parameterTypes,
                         method.getReturnType().getName());
-                // 方法级描述：读该方法的 @ApiDoc，description 优先、回退 summary、再回退 value；空串归 null
-                ApiDoc doc = method.getAnnotation(ApiDoc.class);
-                if (doc != null) {
-                    String text = !doc.description().isEmpty() ? doc.description()
-                            : (!doc.summary().isEmpty() ? doc.summary() : doc.value());
-                    mi.setDescription(text.isEmpty() ? null : text);
-                }
+                // 方法级描述：复用 TypeSchemaResolver.docText（description → summary → value 回退，空串归 null）
+                mi.setDescription(TypeSchemaResolver.docText(method.getAnnotations()));
                 methods.add(mi);
             }
             methods.sort(Comparator.comparing(RpcMethodInfo::getMethodName));

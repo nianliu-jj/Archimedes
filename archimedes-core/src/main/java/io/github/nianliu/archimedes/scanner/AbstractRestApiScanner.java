@@ -101,10 +101,10 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         // 契约增强：请求体/响应体字段结构（解析失败降级 null，不影响主体）
         info.setRequestBodySchema(resolveRequestBodySchema(handlerMethod));
         info.setResponseSchema(TypeSchemaResolver.resolve(method.getGenericReturnType()));
-        // 接口描述：反射读取 Swagger @Operation/@ApiOperation 注解（零编译依赖）
+        // 接口描述：读取自有 @ApiDoc 注解
         info.setSummary(TypeSchemaResolver.operationSummary(method.getAnnotations()));
         info.setOperationDescription(TypeSchemaResolver.operationDescription(method.getAnnotations()));
-        // 模块分组：反射读取 Controller 上的 @Tag/@Api 注解（零编译依赖），无则用类简名兜底
+        // 模块分组：读取 Controller 上的 @ApiModule 注解，无则用类简名兜底
         Class<?> controllerType = handlerMethod.getBeanType();
         info.setTag(TypeSchemaResolver.tagName(controllerType.getAnnotations(), controllerType.getName()));
         info.setTagDescription(TypeSchemaResolver.tagDescription(controllerType.getAnnotations()));
@@ -169,7 +169,7 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
      */
     private ParamInfo toParamInfo(MethodParameter parameter) {
         String type = parameter.getGenericParameterType().getTypeName();
-        // 参数说明：Swagger @Parameter/@ApiParam 反射读取（宿主没用 Swagger 时为空串）
+        // 参数说明：读取自有 @ApiField 注解（无则空串）
         String description = TypeSchemaResolver.paramDescription(parameter.getParameterAnnotations());
         // 参数校验规则：javax/jakarta validation 注解提取（@Pattern/@Size/@Min/@Max 等）
         java.util.Map<String, Object> validation = TypeSchemaResolver.paramValidation(parameter.getParameterAnnotations());

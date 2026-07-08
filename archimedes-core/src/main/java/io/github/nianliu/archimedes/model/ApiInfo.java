@@ -35,13 +35,13 @@ public class ApiInfo {
     private FieldInfo requestBodySchema;
     /** 返回类型（解包 ResponseEntity/Mono 等后）的字段结构树；void 或解析失败时为 null。 */
     private FieldInfo responseSchema;
-    /** 接口摘要（来自 Swagger @Operation#summary 或 @ApiOperation#value，可为空）。 */
+    /** 接口摘要（来自自有 @ApiDoc#summary，可为空）。 */
     private String summary;
-    /** 接口详细描述（来自 Swagger @Operation#description 或 @ApiOperation#notes，可为空）。 */
+    /** 接口详细描述（来自自有 @ApiDoc#description，可为空）。 */
     private String operationDescription;
-    /** 所属模块标签（Controller 维度，来自 @Tag#name 或 @Api#tags，用于前端按模块分组；可为空则按类简名兜底）。 */
+    /** 所属模块标签（Controller 维度，来自 @ApiModule#name，用于前端按模块分组；可为空则按类简名兜底）。 */
     private String tag;
-    /** 模块描述（来自 @Tag#description 或 @Api#value，可为空）。 */
+    /** 模块描述（来自 @ApiModule#description，可为空）。 */
     private String tagDescription;
 
     public String getControllerClass() {

@@ -18,10 +18,10 @@ public class FieldInfo {
     /** 类型展示串（简名，如 String、List&lt;OrderItem&gt;、Map&lt;String,User&gt;）。 */
     private String type;
 
-    /** 是否必填（validation @NotNull/@NotBlank/@NotEmpty 或 Swagger required 标记）。 */
+    /** 是否必填（自有 @ApiField#required 标记）。 */
     private boolean required;
 
-    /** 字段说明（Swagger v3/v2 或 Jackson 注解反射读取；枚举自动补可选值；可为空串）。 */
+    /** 字段说明（自有 @ApiField 读取；枚举自动补可选值；可为空串）。 */
     private String description;
 
     /** 是否为集合/数组语义（children 描述其元素结构）。 */
