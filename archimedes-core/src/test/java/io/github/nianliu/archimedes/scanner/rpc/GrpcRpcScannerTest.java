@@ -1,5 +1,6 @@
 package io.github.nianliu.archimedes.scanner.rpc;
 
+import io.github.nianliu.archimedes.annotation.ApiModule;
 import io.github.nianliu.archimedes.model.RpcApiInfo;
 import io.github.nianliu.archimedes.model.RpcMethodInfo;
 import io.grpc.BindableService;
@@ -52,6 +53,7 @@ class GrpcRpcScannerTest {
         }
     };
 
+    @ApiModule(description = "打招呼服务")
     static class ManualGreeterService implements BindableService {
         @Override
         public ServerServiceDefinition bindService() {
@@ -97,6 +99,19 @@ class GrpcRpcScannerTest {
         RpcMethodInfo streamHello = api.getMethods().get(1);
         assertThat(streamHello.getMethodName()).isEqualTo("StreamHello");
         assertThat(streamHello.getMetadata()).containsEntry("grpcMethodType", "SERVER_STREAMING");
+    }
+
+    @Test
+    void fillsServiceDescriptionFromImplClassAnnotation() {
+        StaticApplicationContext context = new StaticApplicationContext();
+        context.getBeanFactory().registerSingleton("greeter", new ManualGreeterService());
+        context.refresh();
+
+        RpcApiInfo api = new GrpcRpcScanner(context).contribute().get(0);
+        // 服务级描述来自 BindableService 实现类的 @ApiModule#description
+        assertThat(api.getDescription()).isEqualTo("打招呼服务");
+        // gRPC 方法名为 protobuf 名，无法可靠映射回带注解的 Java 方法，方法级描述保持 null（明确边界）
+        assertThat(api.getMethods().get(0).getDescription()).isNull();
     }
 
     @Test

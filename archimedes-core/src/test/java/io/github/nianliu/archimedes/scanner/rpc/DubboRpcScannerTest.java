@@ -1,5 +1,7 @@
 package io.github.nianliu.archimedes.scanner.rpc;
 
+import io.github.nianliu.archimedes.annotation.ApiDoc;
+import io.github.nianliu.archimedes.annotation.ApiModule;
 import io.github.nianliu.archimedes.model.RpcApiInfo;
 import io.github.nianliu.archimedes.model.RpcMethodInfo;
 import org.apache.dubbo.config.spring.ServiceBean;
@@ -14,7 +16,9 @@ import static org.mockito.Mockito.mock;
 
 class DubboRpcScannerTest {
 
+    @ApiModule(name = "定价", description = "定价服务")
     interface GreetingService {
+        @ApiDoc(summary = "计算价格", description = "按数量计价")
         String greet(String name);
 
         int add(int a, int b);
@@ -52,6 +56,28 @@ class DubboRpcScannerTest {
         assertThat(greet.getMethodName()).isEqualTo("greet");
         assertThat(greet.getParameterTypes()).containsExactly("java.lang.String");
         assertThat(greet.getReturnType()).isEqualTo("java.lang.String");
+    }
+
+    @Test
+    void fillsServiceAndMethodDescriptionFromAnnotations() {
+        ServiceBean<?> serviceBean = mock(ServiceBean.class);
+        doReturn(GreetingService.class.getName()).when(serviceBean).getInterface();
+        doReturn(GreetingService.class).when(serviceBean).getInterfaceClass();
+        doReturn("1.0.0").when(serviceBean).getVersion();
+        doReturn("demo").when(serviceBean).getGroup();
+
+        StaticApplicationContext context = new StaticApplicationContext();
+        context.getBeanFactory().registerSingleton("greetingServiceBean", serviceBean);
+        context.refresh();
+
+        RpcApiInfo svc = new DubboRpcScanner(context).contribute().get(0);
+        // 服务级描述来自接口类 @ApiModule#description
+        assertThat(svc.getDescription()).isEqualTo("定价服务");
+        // 方法级描述来自 @ApiDoc#description（仅 greet 标注了注解）
+        RpcMethodInfo priced = svc.getMethods().stream()
+                .filter(m -> m.getDescription() != null)
+                .findFirst().orElseThrow(AssertionError::new);
+        assertThat(priced.getDescription()).isEqualTo("按数量计价");
     }
 
     @Test

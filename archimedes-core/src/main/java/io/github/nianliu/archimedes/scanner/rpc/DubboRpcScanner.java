@@ -1,7 +1,9 @@
 package io.github.nianliu.archimedes.scanner.rpc;
 
+import io.github.nianliu.archimedes.annotation.ApiDoc;
 import io.github.nianliu.archimedes.model.RpcApiInfo;
 import io.github.nianliu.archimedes.model.RpcMethodInfo;
+import io.github.nianliu.archimedes.scanner.schema.TypeSchemaResolver;
 import org.apache.dubbo.config.spring.ServiceBean;
 import org.springframework.context.ApplicationContext;
 
@@ -54,13 +56,26 @@ public class DubboRpcScanner implements RpcApiContributor {
                 for (Class<?> parameterType : method.getParameterTypes()) {
                     parameterTypes.add(parameterType.getName());
                 }
-                methods.add(new RpcMethodInfo(method.getName(), parameterTypes,
-                        method.getReturnType().getName()));
+                RpcMethodInfo mi = new RpcMethodInfo(method.getName(), parameterTypes,
+                        method.getReturnType().getName());
+                // 方法级描述：读该方法的 @ApiDoc，description 优先、回退 summary、再回退 value；空串归 null
+                ApiDoc doc = method.getAnnotation(ApiDoc.class);
+                if (doc != null) {
+                    String text = !doc.description().isEmpty() ? doc.description()
+                            : (!doc.summary().isEmpty() ? doc.summary() : doc.value());
+                    mi.setDescription(text.isEmpty() ? null : text);
+                }
+                methods.add(mi);
             }
             methods.sort(Comparator.comparing(RpcMethodInfo::getMethodName));
         }
         // getInterface() 返回接口 FQCN 字符串（可能来自 XML 配置），与 getInterfaceClass() 互补
-        return new RpcApiInfo(RpcApiInfo.PROTOCOL_DUBBO,
+        RpcApiInfo api = new RpcApiInfo(RpcApiInfo.PROTOCOL_DUBBO,
                 serviceBean.getInterface(), serviceBean.getVersion(), serviceBean.getGroup(), methods);
+        // 服务级描述：读接口类的 @ApiModule#description，空串归 null
+        if (interfaceClass != null) {
+            api.setDescription(TypeSchemaResolver.tagDescriptionOrNull(interfaceClass.getAnnotations()));
+        }
+        return api;
     }
 }

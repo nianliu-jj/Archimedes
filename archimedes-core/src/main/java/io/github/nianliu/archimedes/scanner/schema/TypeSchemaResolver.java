@@ -148,6 +148,18 @@ public final class TypeSchemaResolver {
         return m != null ? m.description() : "";
     }
 
+    /**
+     * 同 {@link #tagDescription(Annotation[])}，但无描述时返回 {@code null}
+     * （供 RPC/WS 模型的 null 语义：description 为 null 表示"未提供"，避免出现空串）。
+     *
+     * @param annotations 类注解数组
+     * @return 模块描述，空串归一为 {@code null}
+     */
+    public static String tagDescriptionOrNull(Annotation[] annotations) {
+        String d = tagDescription(annotations);
+        return d.isEmpty() ? null : d;
+    }
+
     /* ---------- 递归解析 ---------- */
 
     /**

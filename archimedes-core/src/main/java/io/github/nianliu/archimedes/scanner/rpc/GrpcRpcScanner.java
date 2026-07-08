@@ -2,6 +2,7 @@ package io.github.nianliu.archimedes.scanner.rpc;
 
 import io.github.nianliu.archimedes.model.RpcApiInfo;
 import io.github.nianliu.archimedes.model.RpcMethodInfo;
+import io.github.nianliu.archimedes.scanner.schema.TypeSchemaResolver;
 import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerMethodDefinition;
@@ -41,7 +42,11 @@ public class GrpcRpcScanner implements RpcApiContributor {
         for (BindableService service : beans.values()) {
             // bindService() 是获取方法定义的标准入口，无需真正启动 gRPC Server
             ServerServiceDefinition definition = service.bindService();
-            result.add(describe(definition));
+            RpcApiInfo api = describe(definition);
+            // 服务级描述：从 BindableService 实现类上的 @ApiModule#description 读取（空串归 null）。
+            // 方法级描述不做：gRPC 方法名为 protobuf 名（如 SayHello），无法可靠映射回带注解的 Java 方法。
+            api.setDescription(TypeSchemaResolver.tagDescriptionOrNull(service.getClass().getAnnotations()));
+            result.add(api);
         }
         result.sort(Comparator.comparing(RpcApiInfo::getServiceName,
                 Comparator.nullsLast(Comparator.naturalOrder())));
