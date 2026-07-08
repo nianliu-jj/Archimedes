@@ -1,5 +1,8 @@
 package io.github.nianliu.archimedes.scanner.schema;
 
+import io.github.nianliu.archimedes.annotation.ApiDoc;
+import io.github.nianliu.archimedes.annotation.ApiField;
+import io.github.nianliu.archimedes.annotation.ApiModule;
 import io.github.nianliu.archimedes.model.FieldInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +33,8 @@ import java.util.Set;
  * <ul>
  *   <li>解包常见包装类型（ResponseEntity/HttpEntity/Optional/CompletableFuture/Mono 等），
  *       集合/数组/Flux 标记 array 并对元素递归；</li>
- *   <li>字段"说明/必填"来自注解的 <b>FQCN 字符串 + 反射读取</b>（Swagger v3/v2、Jackson、
- *       javax/jakarta validation），core 零编译依赖，宿主未用相应注解库时自然为空；</li>
+ *   <li>字段"说明/必填"来自 Archimedes 自有注解（{@code @ApiField}）的<b>直接类型读取</b>，
+ *       宿主未标注时自然为空；</li>
  *   <li>安全阀：深度上限 {@value #MAX_DEPTH}、同路径类重现判循环、一切异常降级为 null，
  *       绝不影响契约主体输出。</li>
  * </ul>
@@ -59,28 +62,6 @@ public final class TypeSchemaResolver {
     /** Flux 语义 = 元素流，解包后按集合处理。 */
     private static final String FLUX = "reactor.core.publisher.Flux";
 
-    /** 字段说明注解：按优先级 FQCN → 属性名。 */
-    private static final String[][] DESCRIPTION_ANNOTATIONS = {
-            {"io.swagger.v3.oas.annotations.media.Schema", "description"},
-            {"io.swagger.annotations.ApiModelProperty", "value"},
-            {"com.fasterxml.jackson.annotation.JsonPropertyDescription", "value"},
-    };
-
-    /** 参数说明注解：按优先级 FQCN → 属性名。 */
-    private static final String[][] PARAM_DESCRIPTION_ANNOTATIONS = {
-            {"io.swagger.v3.oas.annotations.Parameter", "description"},
-            {"io.swagger.annotations.ApiParam", "value"},
-    };
-
-    /** 命中即视为必填的 validation 注解（javax/jakarta 双系）。 */
-    private static final Set<String> REQUIRED_ANNOTATIONS = new HashSet<>(Arrays.asList(
-            "javax.validation.constraints.NotNull",
-            "javax.validation.constraints.NotBlank",
-            "javax.validation.constraints.NotEmpty",
-            "jakarta.validation.constraints.NotNull",
-            "jakarta.validation.constraints.NotBlank",
-            "jakarta.validation.constraints.NotEmpty"));
-
     private TypeSchemaResolver() {
     }
 
@@ -101,97 +82,70 @@ public final class TypeSchemaResolver {
         }
     }
 
-    /** 从方法参数注解中提取参数说明（Swagger @Parameter/@ApiParam），无则空串。 */
+    /** 从方法参数注解中提取参数说明（{@code @ApiField#value}），无则空串。 */
     public static String paramDescription(Annotation[] annotations) {
-        for (String[] spec : PARAM_DESCRIPTION_ANNOTATIONS) {
-            String value = annotationString(annotations, spec[0], spec[1]);
-            if (value != null && !value.isEmpty()) {
-                return value;
-            }
-        }
-        return "";
+        ApiField f = find(annotations, ApiField.class);
+        return f != null ? f.value() : "";
+    }
+
+    /** 从方法参数注解中提取示例值（{@code @ApiField#example}），无则空串。 */
+    public static String paramExample(Annotation[] annotations) {
+        ApiField f = find(annotations, ApiField.class);
+        return f != null ? f.example() : "";
     }
 
     /**
-     * 从处理方法注解中提取接口摘要（Swagger v3 @Operation#summary / v2 @ApiOperation#value），
-     * 无则空串。
+     * 从处理方法注解中提取接口摘要（{@code @ApiDoc#summary} 空则回退 {@code value}），无则空串。
      */
     public static String operationSummary(Annotation[] methodAnnotations) {
-        // Swagger v3: @Operation(summary = "...")
-        String v3 = annotationString(methodAnnotations,
-                "io.swagger.v3.oas.annotations.Operation", "summary");
-        if (v3 != null && !v3.isEmpty()) {
-            return v3;
+        ApiDoc d = find(methodAnnotations, ApiDoc.class);
+        if (d == null) {
+            return "";
         }
-        // Swagger v2: @ApiOperation(value = "...")
-        String v2 = annotationString(methodAnnotations,
-                "io.swagger.annotations.ApiOperation", "value");
-        return (v2 != null && !v2.isEmpty()) ? v2 : "";
+        return !d.summary().isEmpty() ? d.summary() : d.value();
     }
 
     /**
-     * 从处理方法注解中提取接口描述（Swagger v3 @Operation#description / v2 @ApiOperation#notes），
-     * 无则空串。
+     * 从处理方法注解中提取接口描述（{@code @ApiDoc#description}），无则空串。
      */
     public static String operationDescription(Annotation[] methodAnnotations) {
-        String v3 = annotationString(methodAnnotations,
-                "io.swagger.v3.oas.annotations.Operation", "description");
-        if (v3 != null && !v3.isEmpty()) {
-            return v3;
-        }
-        String v2 = annotationString(methodAnnotations,
-                "io.swagger.annotations.ApiOperation", "notes");
-        return (v2 != null && !v2.isEmpty()) ? v2 : "";
+        ApiDoc d = find(methodAnnotations, ApiDoc.class);
+        return d != null ? d.description() : "";
     }
 
     /**
-     * 从 Controller 类注解中提取模块标签名（Swagger v3 @Tag#name / v2 @Api#tags 首元素），
-     * 无则返回类简名。
+     * 从处理方法注解中提取接口弃用标记（{@code @ApiDoc#deprecated}），无则 false。
+     */
+    public static boolean operationDeprecated(Annotation[] methodAnnotations) {
+        ApiDoc d = find(methodAnnotations, ApiDoc.class);
+        return d != null && d.deprecated();
+    }
+
+    /**
+     * 从 Controller 类注解中提取模块标签名（{@code @ApiModule} name 空回退 value），
+     * 无注解回退类简名（去掉 Controller 后缀，如 OrderController → Order）。
      */
     public static String tagName(Annotation[] classAnnotations, String fallbackClassName) {
-        // Swagger v3: @Tag(name = "...")
-        String v3 = annotationString(classAnnotations,
-                "io.swagger.v3.oas.annotations.tags.Tag", "name");
-        if (v3 != null && !v3.isEmpty()) {
-            return v3;
-        }
-        // Swagger v2: @Api(tags = {"..."}) —— 取第一个
-        String v2tags = annotationString(classAnnotations,
-                "io.swagger.annotations.Api", "tags");
-        if (v2tags != null && !v2tags.isEmpty() && !"[]".equals(v2tags)) {
-            // String.valueOf 对 String[] 返回 "[Ljava.lang.String;@..."，需反射取数组
-            for (Annotation a : classAnnotations) {
-                if ("io.swagger.annotations.Api".equals(a.annotationType().getName())) {
-                    try {
-                        Object arr = a.annotationType().getMethod("tags").invoke(a);
-                        if (arr instanceof String[] && ((String[]) arr).length > 0
-                                && !((String[]) arr)[0].isEmpty()) {
-                            return ((String[]) arr)[0];
-                        }
-                    } catch (Exception ignored) {
-                    }
-                }
+        ApiModule m = find(classAnnotations, ApiModule.class);
+        if (m != null) {
+            // name 优先，为空回退 value
+            String name = !m.name().isEmpty() ? m.name() : m.value();
+            if (!name.isEmpty()) {
+                return name;
             }
         }
-        // 兜底：Controller 类简名（去掉 Controller 后缀，如 OrderController → Order）
+        // 兜底：类简名去 Controller 后缀
         String simple = fallbackClassName.contains(".")
                 ? fallbackClassName.substring(fallbackClassName.lastIndexOf('.') + 1) : fallbackClassName;
         return simple.endsWith("Controller") ? simple.substring(0, simple.length() - 10) : simple;
     }
 
     /**
-     * 从 Controller 类注解中提取模块描述（Swagger v3 @Tag#description / v2 @Api#value），
-     * 无则空串。
+     * 从 Controller 类注解中提取模块描述（{@code @ApiModule#description}），无则空串。
      */
     public static String tagDescription(Annotation[] classAnnotations) {
-        String v3 = annotationString(classAnnotations,
-                "io.swagger.v3.oas.annotations.tags.Tag", "description");
-        if (v3 != null && !v3.isEmpty()) {
-            return v3;
-        }
-        String v2 = annotationString(classAnnotations,
-                "io.swagger.annotations.Api", "value");
-        return (v2 != null && !v2.isEmpty()) ? v2 : "";
+        ApiModule m = find(classAnnotations, ApiModule.class);
+        return m != null ? m.description() : "";
     }
 
     /* ---------- 递归解析 ---------- */
@@ -484,35 +438,31 @@ public final class TypeSchemaResolver {
         return base + "（" + note + "）";
     }
 
-    /* ---------- 注解 FQCN 反射读取（零编译依赖） ---------- */
+    /* ---------- 注解读取 ---------- */
 
+    /** 字段说明：{@code @ApiField#value}，无则空串。 */
     private static String fieldDescription(Field field) {
-        for (String[] spec : DESCRIPTION_ANNOTATIONS) {
-            String value = annotationString(field.getAnnotations(), spec[0], spec[1]);
-            if (value != null && !value.isEmpty()) {
-                return value;
-            }
-        }
-        return "";
+        ApiField f = field.getAnnotation(ApiField.class);
+        return f != null ? f.value() : "";
     }
 
+    /** 字段必填：{@code @ApiField#required}，无则 false。 */
     private static boolean fieldRequired(Field field) {
-        Annotation[] annotations = field.getAnnotations();
-        for (Annotation annotation : annotations) {
-            if (REQUIRED_ANNOTATIONS.contains(annotation.annotationType().getName())) {
-                return true;
+        ApiField f = field.getAnnotation(ApiField.class);
+        return f != null && f.required();
+    }
+
+    /** 在注解数组中按类型查找注解实例，无则 null（防御式：null 数组返回 null）。 */
+    private static <A extends Annotation> A find(Annotation[] annotations, Class<A> type) {
+        if (annotations == null) {
+            return null;
+        }
+        for (Annotation a : annotations) {
+            if (type.isInstance(a)) {
+                return type.cast(a);
             }
         }
-        // Swagger v3：requiredMode()==REQUIRED 或（弃用的）required()==true
-        String mode = annotationString(annotations, "io.swagger.v3.oas.annotations.media.Schema", "requiredMode");
-        if ("REQUIRED".equals(mode)) {
-            return true;
-        }
-        if ("true".equals(annotationString(annotations, "io.swagger.v3.oas.annotations.media.Schema", "required"))) {
-            return true;
-        }
-        // Swagger v2
-        return "true".equals(annotationString(annotations, "io.swagger.annotations.ApiModelProperty", "required"));
+        return null;
     }
 
     private static boolean hasAnnotation(Annotation[] annotations, String fqcn) {
