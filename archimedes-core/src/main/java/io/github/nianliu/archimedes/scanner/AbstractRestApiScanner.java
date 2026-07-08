@@ -96,7 +96,8 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         info.setConsumes(consumes);
         info.setProduces(produces);
         info.setDeprecated(method.isAnnotationPresent(Deprecated.class)
-                || handlerMethod.getBeanType().isAnnotationPresent(Deprecated.class));
+                || handlerMethod.getBeanType().isAnnotationPresent(Deprecated.class)
+                || TypeSchemaResolver.operationDeprecated(method.getAnnotations()));
         // 契约增强：请求体/响应体字段结构（解析失败降级 null，不影响主体）
         info.setRequestBodySchema(resolveRequestBodySchema(handlerMethod));
         info.setResponseSchema(TypeSchemaResolver.resolve(method.getGenericReturnType()));

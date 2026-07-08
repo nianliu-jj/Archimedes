@@ -64,6 +64,25 @@ class RestApiScannerTest {
     }
 
     @Test
+    void readsModuleAndDocFromOwnAnnotations() {
+        List<ApiInfo> apis = scannerFor(SampleControllers.UserController.class).scan();
+
+        ApiInfo getUser = find(apis, "/api/users/{id}");
+        assertThat(getUser.getSummary()).isEqualTo("查询用户");
+        assertThat(getUser.getOperationDescription()).isEqualTo("按 ID 查询");
+        assertThat(getUser.getTag()).isEqualTo("用户");
+        assertThat(getUser.getTagDescription()).isEqualTo("用户管理");
+    }
+
+    @Test
+    void deprecatedFromApiDocFlag() {
+        List<ApiInfo> apis = scannerFor(SampleControllers.UserController.class).scan();
+        assertThat(find(apis, "/api/users/beta").isDeprecated()).isTrue();
+        // 传统 @Deprecated 仍生效
+        assertThat(find(apis, "/api/users/legacy").isDeprecated()).isTrue();
+    }
+
+    @Test
     void cachesResult() {
         RestApiScanner scanner = scannerFor(SampleControllers.UserController.class);
         assertThat(scanner.scan()).isSameAs(scanner.scan());

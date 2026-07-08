@@ -1,5 +1,7 @@
 package io.github.nianliu.archimedes.scanner;
 
+import io.github.nianliu.archimedes.annotation.ApiDoc;
+import io.github.nianliu.archimedes.annotation.ApiModule;
 import org.springframework.mock.web.MockServletContext;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,8 +23,10 @@ public final class SampleControllers {
 
     @RestController
     @RequestMapping("/api/users")
+    @ApiModule(name = "用户", description = "用户管理")
     public static class UserController {
 
+        @ApiDoc(summary = "查询用户", description = "按 ID 查询")
         @GetMapping("/{id}")
         public String getUser(@PathVariable Long id, @RequestParam(required = false) String filter) {
             return "";
@@ -37,6 +41,12 @@ public final class SampleControllers {
         @GetMapping("/legacy")
         public List<String> legacy() {
             return List.of();
+        }
+
+        @ApiDoc(summary = "试验接口", deprecated = true)
+        @GetMapping("/beta")
+        public String beta() {
+            return "";
         }
     }
 
