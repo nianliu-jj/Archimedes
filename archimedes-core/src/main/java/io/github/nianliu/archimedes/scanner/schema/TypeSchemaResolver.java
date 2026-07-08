@@ -160,6 +160,24 @@ public final class TypeSchemaResolver {
         return d.isEmpty() ? null : d;
     }
 
+    /**
+     * 从方法注解中提取 {@code @ApiDoc} 文本（description 非空 → summary 非空 → value），
+     * 空串归一为 {@code null}。供 RPC/WS 方法级描述复用（DRY）。
+     *
+     * @param methodAnnotations 方法注解数组
+     * @return 方法描述文本，空串归一为 {@code null}
+     */
+    public static String docText(Annotation[] methodAnnotations) {
+        ApiDoc d = find(methodAnnotations, ApiDoc.class);
+        if (d == null) {
+            return null;
+        }
+        // 优先级：详细描述 → 摘要 → value 别名
+        String text = !d.description().isEmpty() ? d.description()
+                : (!d.summary().isEmpty() ? d.summary() : d.value());
+        return text.isEmpty() ? null : text;
+    }
+
     /* ---------- 递归解析 ---------- */
 
     /**

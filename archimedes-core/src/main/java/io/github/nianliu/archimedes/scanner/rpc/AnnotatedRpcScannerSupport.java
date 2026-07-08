@@ -2,6 +2,7 @@ package io.github.nianliu.archimedes.scanner.rpc;
 
 import io.github.nianliu.archimedes.model.RpcApiInfo;
 import io.github.nianliu.archimedes.model.RpcMethodInfo;
+import io.github.nianliu.archimedes.scanner.schema.TypeSchemaResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -92,7 +93,12 @@ public abstract class AnnotatedRpcScannerSupport implements RpcApiContributor {
             return null;
         }
         ServiceTarget target = resolveServiceTarget(userClass, attributes);
-        return build(attributes, target, reflectMethods(target.type));
+        RpcApiInfo api = build(attributes, target, reflectMethods(target.type));
+        if (api != null) {
+            // 服务级描述读 target.type（接口或实现类兜底）上的 @ApiModule#description，空串归 null
+            api.setDescription(TypeSchemaResolver.tagDescriptionOrNull(target.type.getAnnotations()));
+        }
+        return api;
     }
 
     /**
@@ -131,8 +137,11 @@ public abstract class AnnotatedRpcScannerSupport implements RpcApiContributor {
             for (Class<?> parameterType : method.getParameterTypes()) {
                 parameterTypes.add(parameterType.getName());
             }
-            methods.add(new RpcMethodInfo(method.getName(), parameterTypes,
-                    method.getReturnType().getName()));
+            RpcMethodInfo mi = new RpcMethodInfo(method.getName(), parameterTypes,
+                    method.getReturnType().getName());
+            // 方法级描述读方法上的 @ApiDoc（description → summary → value），空串归 null
+            mi.setDescription(TypeSchemaResolver.docText(method.getAnnotations()));
+            methods.add(mi);
         }
         methods.sort(Comparator.comparing(RpcMethodInfo::getMethodName));
         return methods;

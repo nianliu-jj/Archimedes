@@ -3,7 +3,10 @@ package io.github.nianliu.archimedes.scanner.rpc;
 import com.alipay.sofa.runtime.api.annotation.SofaService;
 import com.alipay.sofa.runtime.api.annotation.SofaServiceBinding;
 import com.tencent.trpc.spring.annotation.TRpcService;
+import io.github.nianliu.archimedes.annotation.ApiDoc;
+import io.github.nianliu.archimedes.annotation.ApiModule;
 import io.github.nianliu.archimedes.model.RpcApiInfo;
+import io.github.nianliu.archimedes.model.RpcMethodInfo;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.StaticApplicationContext;
 
@@ -13,7 +16,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class AnnotatedRpcScannersTest {
 
+    // 服务接口标注自有注解：@ApiModule 提供服务级描述、@ApiDoc 提供方法级描述。
+    // SOFA（显式 interfaceType）与 tRPC（唯一接口兜底）都会解析到该接口，故一处标注覆盖两协议。
+    @ApiModule(description = "问候服务")
     interface GreetingService {
+        @ApiDoc(description = "打招呼")
         String greet(String name);
     }
 
@@ -56,6 +63,11 @@ class AnnotatedRpcScannersTest {
                 .containsEntry("bindings", "tr,bolt");
         assertThat(api.getMethods()).hasSize(1);
         assertThat(api.getMethods().get(0).getMethodName()).isEqualTo("greet");
+        // 服务级描述来自接口上的 @ApiModule#description
+        assertThat(api.getDescription()).isEqualTo("问候服务");
+        // 方法级描述来自 greet 上的 @ApiDoc#description
+        RpcMethodInfo greet = api.getMethods().get(0);
+        assertThat(greet.getDescription()).isEqualTo("打招呼");
     }
 
     @Test
@@ -69,6 +81,10 @@ class AnnotatedRpcScannersTest {
         assertThat(api.getVersion()).isEqualTo("v1");
         assertThat(api.getGroup()).isEqualTo("g1");
         assertThat(api.getMetadata()).containsEntry("name", "demo.trpc.Greeting");
+        // 同一接口标注对 tRPC（唯一接口兜底）同样生效
+        assertThat(api.getDescription()).isEqualTo("问候服务");
+        assertThat(api.getMethods()).hasSize(1);
+        assertThat(api.getMethods().get(0).getDescription()).isEqualTo("打招呼");
     }
 
     @Test
