@@ -1,6 +1,7 @@
 package io.github.nianliu.archimedes.scanner.ws;
 
 import io.github.nianliu.archimedes.model.WsApiInfo;
+import io.github.nianliu.archimedes.scanner.schema.TypeSchemaResolver;
 import org.springframework.messaging.handler.HandlerMethod;
 import org.springframework.messaging.simp.SimpMessageMappingInfo;
 import org.springframework.messaging.simp.annotation.SubscribeMapping;
@@ -42,8 +43,11 @@ public class StompMappingScanner implements WebSocketApiContributor {
                         : WsApiInfo.KIND_STOMP_MESSAGE;
                 // 单个映射可声明多个目的地 pattern，逐一展开为独立契约条目
                 for (String pattern : entry.getKey().getDestinationConditions().getPatterns()) {
-                    result.add(new WsApiInfo(kind, pattern,
-                            method.getBeanType().getName(), method.getMethod().getName(), false));
+                    WsApiInfo info = new WsApiInfo(kind, pattern,
+                            method.getBeanType().getName(), method.getMethod().getName(), false);
+                    // STOMP 方法级 description 来自方法上的 @ApiDoc（description→summary→value）
+                    info.setDescription(TypeSchemaResolver.docText(method.getMethod().getAnnotations()));
+                    result.add(info);
                 }
             }
         }

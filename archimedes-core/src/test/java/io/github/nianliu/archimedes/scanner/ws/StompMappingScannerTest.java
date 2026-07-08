@@ -1,5 +1,6 @@
 package io.github.nianliu.archimedes.scanner.ws;
 
+import io.github.nianliu.archimedes.annotation.ApiDoc;
 import io.github.nianliu.archimedes.model.WsApiInfo;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.StaticApplicationContext;
@@ -22,6 +23,7 @@ class StompMappingScannerTest {
     static class GreetController {
 
         @MessageMapping("/greet")
+        @ApiDoc(summary = "发送消息")
         public String greet(String name) {
             return "hi " + name;
         }
@@ -51,6 +53,8 @@ class StompMappingScannerTest {
             assertThat(w.getPath()).isEqualTo("/greet");
             assertThat(w.getHandlerMethod()).isEqualTo("greet");
             assertThat(w.getHandlerClass()).isEqualTo(GreetController.class.getName());
+            // 方法级 description 来自方法上的 @ApiDoc(summary)
+            assertThat(w.getDescription()).isEqualTo("发送消息");
         });
         assertThat(result).anySatisfy(w -> {
             assertThat(w.getKind()).isEqualTo(WsApiInfo.KIND_STOMP_SUBSCRIBE);

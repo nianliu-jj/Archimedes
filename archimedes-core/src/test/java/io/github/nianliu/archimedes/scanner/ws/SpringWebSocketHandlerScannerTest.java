@@ -1,5 +1,6 @@
 package io.github.nianliu.archimedes.scanner.ws;
 
+import io.github.nianliu.archimedes.annotation.ApiModule;
 import io.github.nianliu.archimedes.model.WsApiInfo;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.MessageChannel;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.mock;
 
 class SpringWebSocketHandlerScannerTest {
 
+    @ApiModule(description = "回声端点")
     static class ChatHandler extends TextWebSocketHandler {
     }
 
@@ -46,6 +48,8 @@ class SpringWebSocketHandlerScannerTest {
         assertThat(result.get(0).getPath()).isEqualTo("/ws/chat");
         assertThat(result.get(0).getHandlerClass()).isEqualTo(ChatHandler.class.getName());
         assertThat(result.get(0).isSockJs()).isFalse();
+        // handler 类级 description 来自类上的 @ApiModule(description)
+        assertThat(result.get(0).getDescription()).isEqualTo("回声端点");
     }
 
     @Test

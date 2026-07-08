@@ -1,6 +1,7 @@
 package io.github.nianliu.archimedes.scanner.ws;
 
 import io.github.nianliu.archimedes.model.WsApiInfo;
+import io.github.nianliu.archimedes.scanner.schema.TypeSchemaResolver;
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
@@ -68,7 +69,10 @@ public class SpringWebSocketHandlerScanner implements WebSocketApiContributor {
         String displayPath = sockJs && path.endsWith("/**")
                 ? path.substring(0, path.length() - 3)
                 : path;
-        result.add(new WsApiInfo(kind, displayPath, unwrapped.getClass().getName(), null, sockJs));
+        WsApiInfo info = new WsApiInfo(kind, displayPath, unwrapped.getClass().getName(), null, sockJs);
+        // @ApiDoc 仅可标方法，handler 端点无固定业务方法可标，故类级 description 取类上的 @ApiModule#description
+        info.setDescription(TypeSchemaResolver.tagDescriptionOrNull(unwrapped.getClass().getAnnotations()));
+        result.add(info);
     }
 
     /** 剥除 WebSocketHandlerDecorator 装饰层（如 ExceptionWebSocketHandlerDecorator），取真实业务 handler。 */
