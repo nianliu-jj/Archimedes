@@ -14,6 +14,14 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * TypeSchemaResolver 单测：嵌套/集合/Map/枚举/循环/包装解包与字段说明提取
+ * （字段说明与必填改由自有注解 {@code @ApiField} 提供；Jackson @JsonProperty/@JsonIgnore
+ * 的改名/剔除结构逻辑保持不变）。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-08
+ */
 class TypeSchemaResolverTest {
 
     enum OrderStatus { CREATED, PAID }

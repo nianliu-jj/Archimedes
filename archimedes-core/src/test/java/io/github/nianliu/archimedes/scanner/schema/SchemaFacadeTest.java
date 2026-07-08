@@ -9,6 +9,13 @@ import java.lang.annotation.Annotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * TypeSchemaResolver 描述提取门面单测：验证 @ApiModule/@ApiDoc/@ApiField 的读取、
+ * 别名回退（name→value、summary→value）、无注解回退类简名、deprecated 与 example。
+ *
+ * @author nianliu-jj
+ * @since 2026-07-08
+ */
 class SchemaFacadeTest {
 
     @ApiModule("订单")
