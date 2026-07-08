@@ -22,6 +22,8 @@ public class ParamInfo {
     private String description;
     /** 前端校验规则（validation 注解提取：pattern/min/max/minLength/maxLength；无则为 null）。 */
     private java.util.Map<String, Object> validation;
+    /** 示例值（@ApiField#example；供 UI 在线调试预填；可为 null）。 */
+    private String example;
 
     public ParamInfo() {
     }
@@ -86,5 +88,14 @@ public class ParamInfo {
 
     public void setValidation(java.util.Map<String, Object> validation) {
         this.validation = validation;
+    }
+
+    public String getExample() {
+        return example;
+    }
+
+    /** 设置示例值。 */
+    public void setExample(String example) {
+        this.example = example;
     }
 }

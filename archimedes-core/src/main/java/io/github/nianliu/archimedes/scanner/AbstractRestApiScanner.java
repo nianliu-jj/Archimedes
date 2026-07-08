@@ -173,6 +173,8 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         String description = TypeSchemaResolver.paramDescription(parameter.getParameterAnnotations());
         // 参数校验规则：javax/jakarta validation 注解提取（@Pattern/@Size/@Min/@Max 等）
         java.util.Map<String, Object> validation = TypeSchemaResolver.paramValidation(parameter.getParameterAnnotations());
+        // 参数示例值：@ApiField#example 反射读取（无则空串），供 UI 在线调试预填
+        String example = TypeSchemaResolver.paramExample(parameter.getParameterAnnotations());
 
         ParamInfo pi;
         RequestParam requestParam = parameter.getParameterAnnotation(RequestParam.class);
@@ -180,6 +182,7 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
             String name = firstNonEmpty(requestParam.name(), requestParam.value(), fallbackName(parameter));
             pi = new ParamInfo(name, ParamSource.QUERY, type, requestParam.required(), description);
             pi.setValidation(validation);
+            pi.setExample(example);
             return pi;
         }
         PathVariable pathVariable = parameter.getParameterAnnotation(PathVariable.class);
@@ -187,6 +190,7 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
             String name = firstNonEmpty(pathVariable.name(), pathVariable.value(), fallbackName(parameter));
             pi = new ParamInfo(name, ParamSource.PATH, type, pathVariable.required(), description);
             pi.setValidation(validation);
+            pi.setExample(example);
             return pi;
         }
         RequestHeader requestHeader = parameter.getParameterAnnotation(RequestHeader.class);
@@ -194,16 +198,19 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
             String name = firstNonEmpty(requestHeader.name(), requestHeader.value(), fallbackName(parameter));
             pi = new ParamInfo(name, ParamSource.HEADER, type, requestHeader.required(), description);
             pi.setValidation(validation);
+            pi.setExample(example);
             return pi;
         }
         RequestBody requestBody = parameter.getParameterAnnotation(RequestBody.class);
         if (requestBody != null) {
             pi = new ParamInfo(fallbackName(parameter), ParamSource.BODY, type, requestBody.required(), description);
             pi.setValidation(validation);
+            pi.setExample(example);
             return pi;
         }
         pi = new ParamInfo(fallbackName(parameter), ParamSource.OTHER, type, false, description);
         pi.setValidation(validation);
+        pi.setExample(example);
         return pi;
     }
 

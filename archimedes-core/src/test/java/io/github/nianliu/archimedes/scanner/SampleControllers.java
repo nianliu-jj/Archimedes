@@ -1,6 +1,7 @@
 package io.github.nianliu.archimedes.scanner;
 
 import io.github.nianliu.archimedes.annotation.ApiDoc;
+import io.github.nianliu.archimedes.annotation.ApiField;
 import io.github.nianliu.archimedes.annotation.ApiModule;
 import org.springframework.mock.web.MockServletContext;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,7 +29,8 @@ public final class SampleControllers {
 
         @ApiDoc(summary = "查询用户", description = "按 ID 查询")
         @GetMapping("/{id}")
-        public String getUser(@PathVariable Long id, @RequestParam(required = false) String filter) {
+        public String getUser(@PathVariable Long id,
+                @ApiField(value = "过滤条件", example = "active") @RequestParam(required = false) String filter) {
             return "";
         }
 

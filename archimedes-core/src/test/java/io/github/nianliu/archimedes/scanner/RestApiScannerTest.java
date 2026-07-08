@@ -83,6 +83,15 @@ class RestApiScannerTest {
     }
 
     @Test
+    void paramCarriesDescriptionAndExample() {
+        List<ApiInfo> apis = scannerFor(SampleControllers.UserController.class).scan();
+        ParamInfo filter = find(apis, "/api/users/{id}").getParams().stream()
+                .filter(p -> p.getName().equals("filter")).findFirst().orElseThrow();
+        assertThat(filter.getDescription()).isEqualTo("过滤条件");
+        assertThat(filter.getExample()).isEqualTo("active");
+    }
+
+    @Test
     void cachesResult() {
         RestApiScanner scanner = scannerFor(SampleControllers.UserController.class);
         assertThat(scanner.scan()).isSameAs(scanner.scan());
