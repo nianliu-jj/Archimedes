@@ -1,6 +1,6 @@
 package io.github.nianliu.archimedes.exampleall.model;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import io.github.nianliu.archimedes.annotation.ApiField;
 
 import java.util.List;
 
@@ -13,16 +13,16 @@ import java.util.List;
  */
 public class OrderResponse {
 
-    @Schema(description = "订单号")
+    @ApiField(value = "订单号")
     private String orderNo;
 
-    @Schema(description = "订单标题")
+    @ApiField(value = "订单标题")
     private String title;
 
-    @Schema(description = "订单状态")
+    @ApiField(value = "订单状态")
     private Status status;
 
-    @Schema(description = "订单明细")
+    @ApiField(value = "订单明细")
     private List<OrderItemPayload> items;
 
     /** 订单状态枚举：契约说明自动补可选值 */

@@ -1,6 +1,6 @@
 package io.github.nianliu.archimedes.exampleall.model;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import io.github.nianliu.archimedes.annotation.ApiField;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
@@ -15,13 +15,13 @@ import java.math.BigDecimal;
 public class OrderItemPayload {
 
     @NotNull
-    @Schema(description = "商品 ID")
+    @ApiField(value = "商品 ID", required = true)
     private Long productId;
 
-    @Schema(description = "购买数量")
+    @ApiField(value = "购买数量")
     private int quantity;
 
-    @Schema(description = "成交单价")
+    @ApiField(value = "成交单价")
     private BigDecimal price;
 
     public Long getProductId() {

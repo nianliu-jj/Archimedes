@@ -3,7 +3,7 @@ package io.github.nianliu.archimedes.exampleall.controller;
 import io.github.nianliu.archimedes.exampleall.model.CreateOrderRequest;
 import io.github.nianliu.archimedes.exampleall.model.OrderItemPayload;
 import io.github.nianliu.archimedes.exampleall.model.OrderResponse;
-import io.swagger.v3.oas.annotations.Parameter;
+import io.github.nianliu.archimedes.annotation.ApiField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +27,7 @@ import java.util.UUID;
 /**
  * REST 契约测试面：覆盖全部 HTTP 方法与参数形态
  * （@RequestParam/@PathVariable/@RequestBody/@RequestHeader、必填/可选、
- * @Parameter 参数说明、@Deprecated 标记、ResponseEntity 包装解包）。
+ * @ApiField 参数说明、@Deprecated 标记、ResponseEntity 包装解包）。
  * 打开 http://localhost:8082/archimedes 的 REST Tab 即可对照契约与在线调试。
  *
  * @author nianliu-jj
@@ -42,12 +42,12 @@ public class OrderController {
     /** 演示用固定明细（真实业务应查库） */
     private static final List<OrderItemPayload> SAMPLE_ITEMS = Collections.<OrderItemPayload>singletonList(sampleItem());
 
-    /** GET + 可选查询参数 + @Parameter 说明 */
+    /** GET + 可选查询参数 + @ApiField 说明 */
     @GetMapping
     public List<OrderResponse> list(
-            @Parameter(description = "按订单状态过滤，缺省返回全部")
+            @ApiField(value = "按订单状态过滤，缺省返回全部")
             @RequestParam(required = false) String status,
-            @Parameter(description = "分页大小，默认 10")
+            @ApiField(value = "分页大小，默认 10")
             @RequestParam(defaultValue = "10") int size) {
         log.info("list orders, status={}, size={}", status, size);
         return Arrays.<OrderResponse>asList(
@@ -58,7 +58,7 @@ public class OrderController {
     /** GET + 路径变量（调试面板路径变量输入框带说明悬浮） */
     @GetMapping("/{orderNo}")
     public ResponseEntity<OrderResponse> detail(
-            @Parameter(description = "订单号，形如 O-1001")
+            @ApiField(value = "订单号，形如 O-1001")
             @PathVariable String orderNo) {
         log.info("query order detail, orderNo={}", orderNo);
         return ResponseEntity.<OrderResponse>ok(
@@ -69,7 +69,7 @@ public class OrderController {
     @PostMapping
     public OrderResponse create(
             @RequestBody CreateOrderRequest request,
-            @Parameter(description = "幂等键，防止重复下单")
+            @ApiField(value = "幂等键，防止重复下单")
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         log.info("create order, title={}, idempotencyKey={}", request.getTitle(), idempotencyKey);
         return new OrderResponse("O-" + UUID.randomUUID().toString().substring(0, 8),

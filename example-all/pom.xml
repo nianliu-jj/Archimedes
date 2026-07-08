@@ -19,8 +19,6 @@
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
-        <!-- Swagger v3 注解：演示契约 schema 的字段/参数说明提取（宿主真实用法） -->
-        <swagger-annotations.version>2.2.21</swagger-annotations.version>
     </properties>
 
     <dependencyManagement>
@@ -66,12 +64,7 @@
             <version>${grpc.version}</version>
         </dependency>
 
-        <!-- Swagger v3 注解 + validation 注解：驱动 schema 说明/必填提取 -->
-        <dependency>
-            <groupId>io.swagger.core.v3</groupId>
-            <artifactId>swagger-annotations</artifactId>
-            <version>${swagger-annotations.version}</version>
-        </dependency>
+        <!-- validation 注解：驱动前端表单必填/校验演示 -->
         <dependency>
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
