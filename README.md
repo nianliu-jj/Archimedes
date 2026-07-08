@@ -77,7 +77,7 @@ archimedes-parent
 
 扫描 `@RestController` 的路径、HTTP 方法、参数（含来源与 required）、返回类型、consumes/produces、`@Deprecated` 标记。
 
-**请求/响应体结构**：`@RequestBody` 参数类型与返回类型自动解析为字段树。字段说明反射读取 Swagger v3（`@Schema`/`@Parameter`）、Swagger v2（`@ApiModelProperty`/`@ApiParam`）、Jackson（`@JsonPropertyDescription`），均为零编译依赖。UI 调试面板按结构自动生成示例 JSON 预填。
+**请求/响应体结构**：`@RequestBody` 参数类型与返回类型自动解析为字段树。字段说明来自自有注解 `@ApiField`（见下文《接口描述注解》），UI 调试面板按结构自动生成示例 JSON 预填。
 
 ### WebSocket
 
@@ -109,6 +109,18 @@ archimedes-parent
 ```
 
 协议不存在时为空数组。
+
+### 接口描述注解
+
+Archimedes 提供自有描述注解（引入任一 starter 即可用，零额外依赖）：
+
+- `@ApiModule(name, description)` — 标注 Controller / RPC 服务接口，定义模块分组
+- `@ApiDoc(summary, description, deprecated)` — 标注接口方法（REST handler / RPC 方法 / STOMP 消息方法）
+- `@ApiField(value, required, example)` — 标注参数与请求/响应体字段
+
+描述信息在内置控制台展示，其中 `@ApiField` 的 `example` 会用于 UI 请求参数预填。注意：本版本描述信息**只认自有注解**，不再读取 Swagger/Jackson 描述注解；`jakarta.validation`/`javax.validation` 校验注解仍用于前端表单校验，不受影响。
+
+> 覆盖范围：REST / RPC（Dubbo、gRPC、SOFARPC-TR、tRPC）/ WebSocket STOMP 消息方法均支持模块与方法级描述。gRPC 因方法定义来自 `BindableService` 运行时绑定，不支持方法级描述。
 
 ## 配置参考
 
