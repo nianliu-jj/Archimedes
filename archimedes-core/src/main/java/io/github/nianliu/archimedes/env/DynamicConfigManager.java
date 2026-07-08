@@ -7,9 +7,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertySource;
-import org.springframework.util.ClassUtils;
 
-import java.lang.reflect.Constructor;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -24,9 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>每次变更成功后依次触发：
  * <ol>
  *   <li>{@link ConfigurationPropertiesRebinder} 原地重绑定 prefix 命中的属性 Bean；</li>
- *   <li>发布 {@link ArchimedesConfigChangedEvent}（必发）；</li>
- *   <li>classpath 存在 Spring Cloud 时反射构造并发布 {@code EnvironmentChangeEvent}
- *       （联动 @RefreshScope 生态；不存在时静默跳过，零编译依赖）。</li>
+ *   <li>发布 {@link ArchimedesConfigChangedEvent}（宿主监听该事件即可感知配置变化）。</li>
  * </ol>
  *
  * @author nianliu-jj
@@ -38,10 +34,6 @@ public class DynamicConfigManager {
 
     /** 动态属性源名称（前端据此识别"动态覆盖"来源并高亮）。 */
     public static final String DYNAMIC_SOURCE_NAME = "archimedesDynamicConfig";
-
-    /** Spring Cloud 环境变更事件 FQCN（反射可选联动，不引编译依赖）。 */
-    private static final String CLOUD_EVENT_CLASS =
-            "org.springframework.cloud.context.environment.EnvironmentChangeEvent";
 
     private final ConfigurableEnvironment environment;
     private final ConfigurationPropertiesRebinder rebinder;
@@ -109,21 +101,8 @@ public class DynamicConfigManager {
         return map;
     }
 
-    /** 发布变更事件：自有事件必发；Spring Cloud 事件按 classpath 反射可选发布。 */
+    /** 发布变更事件：宿主监听 {@link ArchimedesConfigChangedEvent} 即可感知配置变化。 */
     private void publishEvents(Set<String> changedKeys) {
         eventPublisher.publishEvent(new ArchimedesConfigChangedEvent(this, changedKeys));
-        try {
-            Class<?> eventType = ClassUtils.forName(CLOUD_EVENT_CLASS,
-                    DynamicConfigManager.class.getClassLoader());
-            Constructor<?> constructor = eventType.getConstructor(Set.class);
-            eventPublisher.publishEvent(constructor.newInstance(changedKeys));
-            log.debug("已同步发布 Spring Cloud EnvironmentChangeEvent: {}", changedKeys);
-        } catch (ClassNotFoundException ex) {
-            // 宿主未引入 spring-cloud-context：正常场景，静默跳过
-            log.debug("classpath 无 {}，跳过 Spring Cloud 事件联动", CLOUD_EVENT_CLASS);
-        } catch (Throwable ex) {
-            // 反射构造/发布失败不影响本次配置更新本身
-            log.warn("Spring Cloud EnvironmentChangeEvent 反射发布失败（配置更新本身已生效）: {}", ex.getMessage());
-        }
     }
 }

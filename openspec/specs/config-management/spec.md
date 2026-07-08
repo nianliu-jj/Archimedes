@@ -41,7 +41,7 @@ TBD - created by archiving change config-center. Update Purpose after archive.
 - **THEN** 响应 403，Environment 与动态属性源无任何变化（GET 查询仍可用）
 
 ### Requirement: 热更新联动刷新
-配置更新成功后，系统 SHALL 对 prefix 命中变更 key 的 `@ConfigurationProperties` Bean 执行原地重绑定（构造器绑定的 Bean SHALL 防御式跳过并记录 WARN）；SHALL 发布 `ArchimedesConfigChangedEvent`（携带变更 key 集合）；当 classpath 存在 Spring Cloud 的 `EnvironmentChangeEvent` 时 SHALL 反射构造并同步发布，classpath 不存在时 SHALL 静默跳过。
+配置更新成功后，系统 SHALL 对 prefix 命中变更 key 的 `@ConfigurationProperties` Bean 执行原地重绑定（构造器绑定的 Bean SHALL 防御式跳过并记录 WARN）；SHALL 发布 `ArchimedesConfigChangedEvent`（携带变更 key 集合）。系统 SHALL NOT 发布任何 Spring Cloud 事件（本依赖不对 Spring Cloud 提供支持；需要联动的宿主可自行监听 `ArchimedesConfigChangedEvent` 转发）。
 
 #### Scenario: ConfigurationProperties Bean 重绑定
 - **WHEN** 存在 prefix 为 `demo.conf` 的 `@ConfigurationProperties` JavaBean，更新 `demo.conf.title`
@@ -49,7 +49,7 @@ TBD - created by archiving change config-center. Update Purpose after archive.
 
 #### Scenario: 发布变更事件
 - **WHEN** 任一配置更新成功
-- **THEN** 容器内监听器可收到 `ArchimedesConfigChangedEvent` 且事件的 keys 包含被更新的 key；classpath 存在 Spring Cloud `EnvironmentChangeEvent` 类时同名事件同步发布
+- **THEN** 容器内监听器可收到 `ArchimedesConfigChangedEvent` 且事件的 keys 包含被更新的 key，且不发布其它框架的环境变更事件
 
 ### Requirement: 配置中心 UI Tab
 内置控制台 SHALL 新增「配置中心」Tab：按属性源分组展示全部配置（动态覆盖源置顶并高亮标识）、提供全局文本搜索过滤、支持行内编辑值并点击应用调用热更新端点、支持对动态覆盖项一键移除；热更新开关关闭时编辑控件 SHALL 禁用。

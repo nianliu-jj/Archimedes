@@ -7,9 +7,7 @@ import java.util.Set;
 /**
  * 配置热更新完成后发布的应用事件：携带本次变更的配置键集合。
  * <p>宿主可注册 {@code ApplicationListener<ArchimedesConfigChangedEvent>} 监听配置变化
- * （例如刷新自维护的静态配置缓存）。若 classpath 存在 Spring Cloud，
- * {@link DynamicConfigManager} 还会同步发布 {@code EnvironmentChangeEvent} 以联动
- * {@code @RefreshScope} 生态。
+ * （例如刷新自维护的静态配置缓存，或转发给宿主自有的配置刷新机制）。
  *
  * @author nianliu-jj
  * @since 2026-07-07

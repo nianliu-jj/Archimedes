@@ -42,7 +42,7 @@ public class ArchimedesLoggingEnvironmentPostProcessor implements EnvironmentPos
      */
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        // 幂等：Spring Cloud bootstrap 等场景会多次调用，已注入则跳过
+        // 幂等：EnvironmentPostProcessor 可能被宿主环境多次调用，已注入则跳过
         if (environment.getPropertySources().contains(PROPERTY_SOURCE_NAME)) {
             return;
         }

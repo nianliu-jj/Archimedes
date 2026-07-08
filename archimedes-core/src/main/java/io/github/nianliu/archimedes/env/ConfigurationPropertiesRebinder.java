@@ -19,8 +19,8 @@ import java.util.Set;
  * {@code @ConfigurationProperties} Bean 的轻量级重绑定器：配置热更新后，
  * 对 prefix 命中变更 key 的属性 Bean 用 {@link Binder} 在<b>既有实例</b>上重新绑定，
  * 使其立即反映新配置值。
- * <p>与 Spring Cloud 的 ConfigurationPropertiesRebinder（destroy + reinit）相比：
- * 零依赖、不替换实例（既有引用继续有效）；代价是构造器绑定的不可变 Bean 无法刷新
+ * <p>与"销毁 + 重建 Bean"式的重绑定方案相比：零新增依赖、不替换实例
+ * （既有引用继续有效）；代价是构造器绑定的不可变 Bean 无法刷新
  * ——检测到无可写属性时防御式跳过并 WARN。
  *
  * @author nianliu-jj

@@ -3,7 +3,6 @@ package io.github.nianliu.archimedes.env;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Configuration;
@@ -79,19 +78,14 @@ class DynamicConfigManagerTest {
     }
 
     @Test
-    void publishesArchimedesEventAndCloudEventReflectively() {
+    void publishesArchimedesConfigChangedEventOnly() {
         manager.update("app.greeting", "hi");
 
-        // 自有事件必发
-        assertThat(publishedEvents).anySatisfy(e -> {
-            assertThat(e).isInstanceOf(ArchimedesConfigChangedEvent.class);
-            assertThat(((ArchimedesConfigChangedEvent) e).getKeys()).containsExactly("app.greeting");
-        });
-        // 测试 classpath 存在同 FQCN 桩类 → 反射发布路径生效
-        assertThat(publishedEvents).anySatisfy(e -> {
-            assertThat(e).isInstanceOf(EnvironmentChangeEvent.class);
-            assertThat(((EnvironmentChangeEvent) e).getKeys()).containsExactly("app.greeting");
-        });
+        // 只发布自有事件（本依赖不对 Spring Cloud 等外部框架发布联动事件）
+        assertThat(publishedEvents).hasSize(1);
+        assertThat(publishedEvents.get(0)).isInstanceOf(ArchimedesConfigChangedEvent.class);
+        assertThat(((ArchimedesConfigChangedEvent) publishedEvents.get(0)).getKeys())
+                .containsExactly("app.greeting");
     }
 
     @Test

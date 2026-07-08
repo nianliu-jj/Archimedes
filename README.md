@@ -200,7 +200,7 @@ archimedes:
 
 - **配置查询**：`GET {base-path}/config` 按 Environment 优先级枚举全部可枚举属性源，标注每项配置的来源；命中敏感关键字的值统一脱敏为 `******`。
 - **热更新**：`POST {base-path}/config/update` 写入最高优先级动态属性源，`environment.getProperty()` 立即生效；prefix 命中的 `@ConfigurationProperties` Bean 自动**原地重绑定**（构造器绑定的不可变 Bean 无法刷新，跳过并 WARN）。
-- **事件联动**：每次变更发布 `ArchimedesConfigChangedEvent`；classpath 存在 Spring Cloud 时同步发布 `EnvironmentChangeEvent` 联动 `@RefreshScope` 生态（零编译依赖，反射可选发布）。
+- **事件通知**：每次变更发布 `ArchimedesConfigChangedEvent`（携带变更 key 集合），宿主监听该事件即可感知配置变化（如刷新自维护的配置缓存）。本依赖不对 Spring Cloud 提供支持、不发布其环境变更事件。
 - **边界声明**：动态覆盖仅存于内存，**不持久化**——应用重启后恢复为底层配置源原值；不写回 application.properties 文件。热更新适用于开发/联调场景，生产环境建议关闭或配合安全框架收敛访问。
 
 ### 数据库监控
