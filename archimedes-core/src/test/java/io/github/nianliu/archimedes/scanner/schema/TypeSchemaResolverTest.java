@@ -3,11 +3,15 @@ package io.github.nianliu.archimedes.scanner.schema;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.nianliu.archimedes.annotation.ApiField;
+import io.github.nianliu.archimedes.annotation.ApiParam;
+import io.github.nianliu.archimedes.annotation.ApiResponse;
 import io.github.nianliu.archimedes.model.FieldInfo;
+import io.github.nianliu.archimedes.model.ResponseInfo;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import reactor.core.publisher.Mono;
 
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
@@ -130,5 +134,72 @@ class TypeSchemaResolverTest {
         assertThat(children.getType()).isEqualTo("TreeNode");
         assertThat(children.getDescription()).contains("递归引用");
         assertThat(children.getChildren()).isEmpty();
+    }
+
+    /* ---------- @ApiParam / @ApiResponse 解析 ---------- */
+
+    static class Sample {
+        // 参数级 @ApiParam
+        void paramLevel(@ApiParam(value = "状态过滤", required = true, example = "PAID") String status) { }
+
+        // 方法级 @ApiParam（重复连写），name 与参数名匹配
+        @ApiParam(name = "id", value = "订单号", required = true, example = "O-1")
+        @ApiParam(name = "size", value = "分页大小")
+        void methodLevel(String id, int size) { }
+
+        // 参数级优先于方法级
+        @ApiParam(name = "code", value = "方法级说明")
+        void precedence(@ApiParam(value = "参数级说明") String code) { }
+
+        @ApiResponse(code = 200, description = "成功", type = OrderItem.class)
+        @ApiResponse(code = 404, description = "订单不存在")
+        void responses() { }
+    }
+
+    private static Method method(String name, Class<?>... args) throws Exception {
+        return Sample.class.getDeclaredMethod(name, args);
+    }
+
+    @Test
+    void resolvesParamLevelApiParam() throws Exception {
+        Method m = method("paramLevel", String.class);
+        ApiParam p = TypeSchemaResolver.paramApiParam(m, m.getParameters()[0].getAnnotations(), "status");
+        assertThat(p).isNotNull();
+        assertThat(p.value()).isEqualTo("状态过滤");
+        assertThat(p.required()).isTrue();
+        assertThat(p.example()).isEqualTo("PAID");
+    }
+
+    @Test
+    void resolvesMethodLevelApiParamByName() throws Exception {
+        Method m = method("methodLevel", String.class, int.class);
+        ApiParam id = TypeSchemaResolver.paramApiParam(m, new java.lang.annotation.Annotation[0], "id");
+        assertThat(id).isNotNull();
+        assertThat(id.value()).isEqualTo("订单号");
+        assertThat(id.required()).isTrue();
+        ApiParam size = TypeSchemaResolver.paramApiParam(m, new java.lang.annotation.Annotation[0], "size");
+        assertThat(size.value()).isEqualTo("分页大小");
+        // 不匹配的名字返回 null
+        assertThat(TypeSchemaResolver.paramApiParam(m, new java.lang.annotation.Annotation[0], "nope")).isNull();
+    }
+
+    @Test
+    void paramLevelWinsOverMethodLevel() throws Exception {
+        Method m = method("precedence", String.class);
+        ApiParam p = TypeSchemaResolver.paramApiParam(m, m.getParameters()[0].getAnnotations(), "code");
+        assertThat(p.value()).isEqualTo("参数级说明");
+    }
+
+    @Test
+    void resolvesApiResponses() throws Exception {
+        List<ResponseInfo> responses = TypeSchemaResolver.responses(method("responses"));
+        assertThat(responses).hasSize(2);
+        ResponseInfo ok = responses.stream().filter(r -> r.getCode() == 200).findFirst().orElseThrow();
+        assertThat(ok.getDescription()).isEqualTo("成功");
+        assertThat(ok.getType()).isEqualTo("OrderItem");
+        assertThat(ok.getSchema()).isNotNull();
+        ResponseInfo notFound = responses.stream().filter(r -> r.getCode() == 404).findFirst().orElseThrow();
+        assertThat(notFound.getType()).isNull();
+        assertThat(notFound.getSchema()).isNull();
     }
 }

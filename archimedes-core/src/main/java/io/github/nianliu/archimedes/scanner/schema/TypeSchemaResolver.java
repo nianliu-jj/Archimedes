@@ -3,13 +3,17 @@ package io.github.nianliu.archimedes.scanner.schema;
 import io.github.nianliu.archimedes.annotation.ApiDoc;
 import io.github.nianliu.archimedes.annotation.ApiField;
 import io.github.nianliu.archimedes.annotation.ApiModule;
+import io.github.nianliu.archimedes.annotation.ApiParam;
+import io.github.nianliu.archimedes.annotation.ApiResponse;
 import io.github.nianliu.archimedes.model.FieldInfo;
+import io.github.nianliu.archimedes.model.ResponseInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -92,6 +96,56 @@ public final class TypeSchemaResolver {
     public static String paramExample(Annotation[] annotations) {
         ApiField f = find(annotations, ApiField.class);
         return f != null ? f.example() : "";
+    }
+
+    /**
+     * 解析某个 REST 参数命中的 {@code @ApiParam}：参数级优先，其次方法级（按 name 与参数名匹配）。
+     * <p>方法级读取用 {@code method.getAnnotationsByType(ApiParam.class)}，
+     * {@code @Repeatable} 会自动把 {@code @ApiParams} 容器与连写的多个 {@code @ApiParam} 一并展开。
+     *
+     * @param method          所属处理方法
+     * @param paramAnnotations 该参数上的注解数组
+     * @param paramName        解析出的参数名（页面展示名）
+     * @return 命中的 {@code @ApiParam}，无则 null
+     */
+    public static ApiParam paramApiParam(Method method, Annotation[] paramAnnotations, String paramName) {
+        // 参数级优先：直接标在参数前的 @ApiParam 就近生效，不依赖 name 匹配
+        ApiParam direct = find(paramAnnotations, ApiParam.class);
+        if (direct != null) {
+            return direct;
+        }
+        // 方法级：按 name 与参数名匹配
+        if (method != null) {
+            for (ApiParam p : method.getAnnotationsByType(ApiParam.class)) {
+                if (paramName != null && paramName.equals(p.name())) {
+                    return p;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 解析方法上的 {@code @ApiResponse} 列表（{@code @Repeatable}，含 {@code @ApiResponses} 容器）。
+     * type 非 {@code Void.class} 时复用 {@link #resolve(Type)} 出字段树；解析异常降级为无 schema。
+     *
+     * @param method 处理方法
+     * @return 响应契约列表，无声明时空列表
+     */
+    public static List<ResponseInfo> responses(Method method) {
+        List<ResponseInfo> result = new ArrayList<>();
+        if (method == null) {
+            return result;
+        }
+        for (ApiResponse r : method.getAnnotationsByType(ApiResponse.class)) {
+            Class<?> type = r.type();
+            // Void/void 视为无响应体：schema 与展示类型都为 null
+            boolean hasType = type != null && type != Void.class && type != void.class;
+            FieldInfo schema = hasType ? resolve(type) : null;
+            String typeName = hasType ? type.getSimpleName() : null;
+            result.add(new ResponseInfo(r.code(), r.description(), typeName, schema));
+        }
+        return result;
     }
 
     /**
