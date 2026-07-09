@@ -4,81 +4,371 @@
     <meta charset="UTF-8">
     <title>Archimedes · API Explorer</title>
     <style>
-        body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; color: #222; }
-        h1 { font-size: 20px; }
+        /* ============ 设计令牌（参考 soybean-admin themeSettings） ============ */
+        :root {
+            --primary: #646cff;            /* 主色：靛紫 */
+            --primary-hover: #7d84ff;
+            --primary-soft: rgba(100, 108, 255, .1);
+            --success: #52c41a;
+            --warning: #faad14;
+            --error: #f5222d;
+            --info: #2080f0;
+            --radius: 6px;
+            --radius-lg: 10px;
+            /* 浅色（默认） */
+            --bg-layout: rgb(247, 250, 252);
+            --bg-container: #ffffff;
+            --bg-soft: #f7f8fa;
+            --bg-hover: #f2f4f8;
+            --text: #1f1f1f;
+            --text-2: #5a6270;
+            --text-3: #98a0ad;
+            --border: #e8ecf1;
+            --border-2: #eef1f5;
+            --sider-bg: #ffffff;
+            --shadow-card: 0 1px 2px rgba(0, 21, 41, .06);
+            --shadow-sider: 2px 0 8px 0 rgba(29, 35, 41, .05);
+            --shadow-pop: 0 4px 16px rgba(0, 21, 41, .12);
+            --code-bg: #f2f3f7;
+            --sider-w: 224px;
+            --topbar-h: 56px;
+        }
+        html[data-theme="dark"] {
+            --primary: #7d84ff;
+            --primary-hover: #949bff;
+            --primary-soft: rgba(125, 132, 255, .16);
+            --bg-layout: #101014;
+            --bg-container: #18181c;
+            --bg-soft: #202027;
+            --bg-hover: #26262e;
+            --text: #e6e6ec;
+            --text-2: #a3a3ad;
+            --text-3: #6f6f7a;
+            --border: #2a2a33;
+            --border-2: #24242c;
+            --sider-bg: #18181c;
+            --shadow-card: 0 1px 2px rgba(0, 0, 0, .4);
+            --shadow-sider: 2px 0 8px 0 rgba(0, 0, 0, .3);
+            --shadow-pop: 0 4px 16px rgba(0, 0, 0, .5);
+            --code-bg: #26262e;
+        }
+
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; height: 100%; }
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+                "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--text);
+            background: var(--bg-layout);
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-family: "JetBrains Mono", Consolas, Menlo, monospace;
+            font-size: .9em;
+        }
+        a { color: var(--primary); text-decoration: none; }
+
+        /* ============ 布局骨架：左 sider + 顶栏 ============ */
+        .app { display: flex; min-height: 100vh; }
+        .sider {
+            width: var(--sider-w);
+            flex: 0 0 var(--sider-w);
+            background: var(--sider-bg);
+            box-shadow: var(--shadow-sider);
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+        .brand {
+            height: var(--topbar-h);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 20px;
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: .3px;
+            border-bottom: 1px solid var(--border-2);
+        }
+        .brand .logo {
+            width: 26px; height: 26px; border-radius: 7px;
+            background: linear-gradient(135deg, var(--primary), #9aa0ff);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 15px; font-weight: 800;
+        }
+        .brand .ver { font-size: 11px; color: var(--text-3); font-weight: 500; }
+        #tabs { flex: 1; overflow-y: auto; padding: 10px 12px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            width: 100%; text-align: left;
+            padding: 9px 12px; margin: 2px 0;
+            border: none; background: none;
+            border-radius: var(--radius);
+            font-size: 14px; color: var(--text-2);
+            cursor: pointer;
+            transition: background .15s, color .15s;
+        }
+        .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+        .nav-item.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+        .nav-item .ico { width: 18px; text-align: center; font-size: 15px; flex: 0 0 18px; }
+        .nav-item .lbl { flex: 1; }
+        .tab-badge {
+            background: var(--bg-hover); color: var(--text-3);
+            border-radius: 9px; padding: 0 7px;
+            font-size: 11px; font-weight: 600; min-width: 20px; text-align: center;
+        }
+        .nav-item.active .tab-badge { background: var(--primary); color: #fff; }
+
+        .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .topbar {
+            height: var(--topbar-h);
+            flex: 0 0 var(--topbar-h);
+            background: var(--bg-container);
+            box-shadow: var(--shadow-card);
+            display: flex; align-items: center; gap: 14px;
+            padding: 0 22px;
+            position: sticky; top: 0; z-index: 20;
+        }
+        .topbar .title { font-weight: 600; font-size: 15px; }
+        .topbar .spacer { flex: 1; }
+        .icon-btn {
+            width: 34px; height: 34px; border-radius: var(--radius);
+            border: 1px solid var(--border); background: var(--bg-container);
+            color: var(--text-2); cursor: pointer; font-size: 15px;
+            display: flex; align-items: center; justify-content: center;
+            transition: background .15s, color .15s;
+        }
+        .icon-btn:hover { background: var(--bg-hover); color: var(--text); }
+        .content { flex: 1; padding: 20px 22px; overflow-x: hidden; }
+
+        /* ============ 工具栏与搜索 ============ */
+        .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .search {
+            flex: 0 1 340px; position: relative;
+        }
+        .search input, #q {
+            width: 100%; padding: 8px 12px 8px 32px;
+            font-size: 14px; color: var(--text);
+            background: var(--bg-container);
+            border: 1px solid var(--border); border-radius: var(--radius);
+            outline: none; transition: border-color .15s, box-shadow .15s;
+        }
+        .search input:focus, #q:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+        .search .search-ico { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-size: 14px; pointer-events: none; }
+        select, #restMethod {
+            padding: 8px 10px; font-size: 13px; color: var(--text);
+            background: var(--bg-container);
+            border: 1px solid var(--border); border-radius: var(--radius); outline: none; cursor: pointer;
+        }
+        input, textarea { font-family: inherit; }
+
+        /* ============ 卡片 ============ */
+        .card {
+            background: var(--bg-container);
+            border: 1px solid var(--border-2);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-card);
+            margin-bottom: 14px;
+            overflow: hidden;
+        }
+        .card-hd { padding: 12px 16px; border-bottom: 1px solid var(--border-2); }
+        .card-bd { padding: 8px 16px 14px; }
+        .group-title { display: flex; align-items: baseline; gap: 8px; margin: 20px 2px 10px; }
+        .group-title:first-child { margin-top: 4px; }
+        .group-title .gt-name { font-size: 15px; font-weight: 700; }
+        .group-title .gt-desc { font-size: 12px; color: var(--text-3); }
+        .group-title .gt-count { font-size: 12px; color: var(--text-3); font-weight: 500; }
+
+        /* API 卡片（REST） */
+        .api-card {
+            background: var(--bg-container);
+            border: 1px solid var(--border-2);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-card);
+            margin-bottom: 10px;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .api-card:hover { border-color: var(--primary); box-shadow: 0 2px 10px rgba(100,108,255,.12); }
+        .api-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; }
+        .api-main { flex: 1; min-width: 0; }
+        .api-title { font-weight: 600; font-size: 14px; }
+        .api-title.dep { text-decoration: line-through; color: var(--text-3); }
+        .api-sub { font-size: 12px; color: var(--text-3); margin-top: 3px; word-break: break-all; }
+        .api-desc { font-size: 12.5px; color: var(--text-2); margin-top: 4px; }
+        .api-path { font-family: "JetBrains Mono", Consolas, monospace; font-size: 12.5px; color: var(--text-2); }
+
+        /* HTTP 方法 / 协议 彩色 chip */
+        .verb {
+            display: inline-block; min-width: 52px; text-align: center;
+            padding: 3px 8px; border-radius: 5px;
+            font-size: 11px; font-weight: 700; letter-spacing: .3px; color: #fff;
+        }
+        .verb-GET { background: var(--success); }
+        .verb-POST { background: var(--info); }
+        .verb-PUT { background: var(--warning); }
+        .verb-DELETE { background: var(--error); }
+        .verb-PATCH { background: #8b5cf6; }
+        .verb-OTHER { background: #6b7280; }
+
+        .kind {
+            display: inline-block; padding: 2px 8px; border-radius: 5px;
+            font-size: 11px; font-weight: 600;
+            background: var(--primary-soft); color: var(--primary);
+        }
+        .chip {
+            display: inline-block; padding: 4px 12px;
+            border: 1px solid var(--border); border-radius: 14px;
+            font-size: 12px; cursor: pointer; margin-left: 6px;
+            color: var(--text-2); background: var(--bg-container);
+            transition: all .15s;
+        }
+        .chip:hover { border-color: var(--primary); color: var(--primary); }
+        .chip.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        /* ============ 表格 ============ */
         table { border-collapse: collapse; width: 100%; font-size: 13px; }
-        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
-        th { background: #f5f5f5; position: sticky; top: 0; }
+        th, td { border-bottom: 1px solid var(--border-2); padding: 9px 12px; text-align: left; vertical-align: top; }
+        th {
+            background: var(--bg-soft); color: var(--text-2);
+            font-weight: 600; font-size: 12px;
+            position: sticky; top: var(--topbar-h); z-index: 5;
+        }
+        tbody tr { transition: background .12s; }
+        tbody tr:hover { background: var(--bg-hover); }
+        table.schema { width: auto; min-width: 55%; margin: 4px 0 8px; border: 1px solid var(--border-2); border-radius: var(--radius); overflow: hidden; }
+        table.schema th { top: 0; }
+        .slow-row { background: rgba(245, 34, 45, .06); }
+        .ovr-row { background: var(--primary-soft); }
+        .cfg-group td { background: var(--bg-soft); font-weight: 600; font-size: 13px; }
+
+        /* ============ 文本与状态 ============ */
         .m { font-weight: 600; }
-        .dep { text-decoration: line-through; color: #999; }
-        code { background: #f2f2f2; padding: 1px 4px; border-radius: 3px; }
-        .count { color: #666; font-size: 12px; margin-left: 8px; font-weight: normal; }
-        .kind { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; background: #e8f0fe; color: #1a56b0; }
-        .empty { color: #999; font-style: italic; }
-        #tabs { border-bottom: 2px solid #1a56b0; margin-top: 16px; }
-        .tab-btn { background: none; border: none; padding: 8px 14px; font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #555; }
-        .tab-btn.active { color: #1a56b0; border-bottom-color: #1a56b0; font-weight: 600; }
-        .tab-badge { background: #eee; border-radius: 8px; padding: 0 6px; font-size: 11px; color: #666; margin-left: 5px; }
-        .panel { display: none; margin-top: 12px; }
-        .panel.active { display: block; }
-        .toolbar { margin-top: 12px; }
-        #q { padding: 8px; width: 320px; font-size: 14px; }
-        #restMethod { padding: 7px; font-size: 13px; margin-left: 8px; }
-        .chip { display: inline-block; padding: 2px 10px; border: 1px solid #ccc; border-radius: 12px; font-size: 12px; cursor: pointer; margin-left: 6px; }
-        .chip.on { background: #1a56b0; color: #fff; border-color: #1a56b0; }
-        .meta { color: #888; font-size: 11px; margin-top: 2px; }
-        .try-btn { padding: 2px 10px; font-size: 12px; cursor: pointer; }
-        .try-cell { background: #fafbfd; padding: 12px; }
-        .try-cell h3 { margin: 10px 0 4px; font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: .04em; }
-        .try-cell input, .try-cell select, .try-cell button { font-size: 12px; padding: 4px 6px; margin: 2px 6px 2px 0; }
-        .try-cell textarea { font-size: 12px; padding: 4px 6px; width: 60%; min-height: 80px; font-family: Consolas, Menlo, monospace; display: block; }
-        .send-btn { background: #1a56b0; color: #fff; border: 1px solid #1a56b0; border-radius: 3px; padding: 5px 18px; cursor: pointer; }
-        .kv input { width: 170px; }
-        .req { color: #c0392b; }
-        .result pre { background: #f2f2f2; padding: 10px; overflow: auto; max-height: 320px; font-size: 12px; margin: 4px 0; white-space: pre-wrap; word-break: break-all; }
-        .status-ok { color: #0a7d38; font-weight: 600; }
-        .status-err { color: #c0392b; font-weight: 600; }
-        table.schema { width: auto; min-width: 55%; margin: 4px 0 6px; }
+        .dep { text-decoration: line-through; color: var(--text-3); }
+        .count { color: var(--text-3); font-size: 12px; margin-left: 8px; font-weight: normal; }
+        .meta { color: var(--text-3); font-size: 11.5px; margin-top: 2px; }
+        .empty { color: var(--text-3); font-style: italic; }
+        .req { color: var(--error); font-weight: 700; }
+        .status-ok { color: var(--success); font-weight: 600; }
+        .status-err { color: var(--error); font-weight: 600; }
+
+        /* ============ 按钮 ============ */
+        .try-btn {
+            padding: 4px 12px; font-size: 12px; cursor: pointer;
+            border: 1px solid var(--border); border-radius: 5px;
+            background: var(--bg-container); color: var(--text-2);
+            transition: all .15s;
+        }
+        .try-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .send-btn {
+            background: var(--primary); color: #fff;
+            border: 1px solid var(--primary); border-radius: 5px;
+            padding: 6px 18px; cursor: pointer; font-size: 12px; font-weight: 600;
+            transition: background .15s;
+        }
+        .send-btn:hover { background: var(--primary-hover); }
+
+        /* ============ try-it 面板 ============ */
+        .try-cell { background: var(--bg-soft); padding: 14px 16px; border-top: 1px solid var(--border-2); }
+        .try-cell h3 { margin: 12px 0 5px; font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; }
+        .try-cell h3:first-child { margin-top: 0; }
+        .try-cell input, .try-cell select, .try-cell button { font-size: 12px; padding: 5px 8px; margin: 2px 6px 2px 0; }
+        .try-cell input, .try-cell textarea {
+            background: var(--bg-container); color: var(--text);
+            border: 1px solid var(--border); border-radius: 5px;
+        }
+        .try-cell textarea {
+            padding: 8px; width: 100%; max-width: 560px; min-height: 96px;
+            font-family: "JetBrains Mono", Consolas, Menlo, monospace; display: block;
+        }
+        .kv { margin: 4px 0; }
+        .kv input { width: 190px; }
+        .result pre {
+            background: var(--code-bg); padding: 12px; overflow: auto; max-height: 340px;
+            font-size: 12px; margin: 4px 0; white-space: pre-wrap; word-break: break-all;
+            border-radius: var(--radius); border: 1px solid var(--border-2);
+            font-family: "JetBrains Mono", Consolas, monospace;
+        }
+
+        /* ============ panel 显隐 ============ */
+        .panel { display: none; }
+        .panel.active { display: block; animation: fade .2s ease; }
+        @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+        /* ============ 认证栏 ============ */
+        .authbar {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            margin-bottom: 14px; padding: 10px 14px;
+            background: var(--bg-container); border: 1px solid var(--border);
+            border-radius: var(--radius); box-shadow: var(--shadow-card); font-size: 13px;
+        }
+        .authbar input { padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--bg-container); color: var(--text); }
+
+        /* 池状态卡片（DB） */
+        .pool-card {
+            display: inline-block; vertical-align: top;
+            border: 1px solid var(--border-2); border-radius: var(--radius);
+            padding: 10px 16px; margin: 0 10px 10px 0;
+            background: var(--bg-container); box-shadow: var(--shadow-card); font-size: 13px;
+        }
+        .pool-card b.num { color: var(--primary); }
     </style>
 </head>
 <body>
-<h1>Archimedes · API Explorer</h1>
+<div class="app">
+    <!-- 左侧导航 sider（id="tabs" 保留：契约扫描 UI 探测锚点） -->
+    <aside class="sider">
+        <div class="brand">
+            <span class="logo">A</span>
+            <span>Archimedes</span>
+            <span class="ver">API Explorer</span>
+        </div>
+        <nav id="tabs">
+            <button class="nav-item" id="tabbtn-rest" onclick="switchTab('rest')"><span class="ico">🌐</span><span class="lbl">REST</span><span class="tab-badge" id="badge-rest">0</span></button>
+            <button class="nav-item" id="tabbtn-ws" onclick="switchTab('ws')"><span class="ico">🔌</span><span class="lbl">WebSocket</span><span class="tab-badge" id="badge-ws">0</span></button>
+            <button class="nav-item" id="tabbtn-rpc" onclick="switchTab('rpc')"><span class="ico">🧩</span><span class="lbl">RPC</span><span class="tab-badge" id="badge-rpc">0</span></button>
+            <button class="nav-item" id="tabbtn-tr" onclick="switchTab('tr')"><span class="ico">🛰️</span><span class="lbl">TR</span><span class="tab-badge" id="badge-tr">0</span></button>
+            <button class="nav-item" id="tabbtn-config" onclick="switchTab('config')"><span class="ico">⚙️</span><span class="lbl">配置中心</span><span class="tab-badge" id="badge-config">0</span></button>
+            <button class="nav-item" id="tabbtn-db" onclick="switchTab('db')"><span class="ico">🗄️</span><span class="lbl">数据库</span><span class="tab-badge" id="badge-db">0</span></button>
+            <button class="nav-item" id="tabbtn-trace" onclick="switchTab('trace')"><span class="ico">🔗</span><span class="lbl">链路追踪</span></button>
+        </nav>
+    </aside>
 
-<!-- 认证栏：根据 security 配置显示不同认证输入方式（参考 Swagger UI 的 Authorize 弹窗） -->
-<div id="authBar" style="display:none;margin-bottom:12px;padding:8px 12px;background:#f8f9fa;border:1px solid #ddd;border-radius:4px;font-size:13px">
-    <strong>🔒 Authorize</strong>
-    <span id="authType" class="count"></span>
-    <span id="authInputs" style="margin-left:8px"></span>
-    <button onclick="saveAuth()" style="padding:3px 12px;font-size:12px;margin-left:6px">Apply</button>
-    <span id="authStatus" class="meta" style="margin-left:8px"></span>
-</div>
+    <!-- 右侧主区 -->
+    <div class="main">
+        <header class="topbar">
+            <span class="title" id="topTitle">REST</span>
+            <span class="spacer"></span>
+            <div class="search"><span class="search-ico">🔍</span><input id="q" placeholder="过滤 路径 / 方法 / 类名 / 描述..." oninput="render()"></div>
+            <select id="restMethod" onchange="render()"><option value="">全部方法</option></select>
+            <button class="icon-btn" id="themeBtn" title="切换主题" onclick="toggleTheme()">🌙</button>
+        </header>
 
-<nav id="tabs">
-    <button class="tab-btn" id="tabbtn-rest" onclick="switchTab('rest')">REST<span class="tab-badge" id="badge-rest">0</span></button>
-    <button class="tab-btn" id="tabbtn-ws" onclick="switchTab('ws')">WebSocket<span class="tab-badge" id="badge-ws">0</span></button>
-    <button class="tab-btn" id="tabbtn-rpc" onclick="switchTab('rpc')">RPC<span class="tab-badge" id="badge-rpc">0</span></button>
-    <button class="tab-btn" id="tabbtn-tr" onclick="switchTab('tr')">TR<span class="tab-badge" id="badge-tr">0</span></button>
-    <button class="tab-btn" id="tabbtn-config" onclick="switchTab('config')">Config<span class="tab-badge" id="badge-config">0</span></button>
-    <button class="tab-btn" id="tabbtn-db" onclick="switchTab('db')">DB<span class="tab-badge" id="badge-db">0</span></button>
-    <button class="tab-btn" id="tabbtn-trace" onclick="switchTab('trace')">Trace Logs</button>
-</nav>
+        <main class="content">
+            <!-- 认证栏：根据 security 配置显示不同认证输入方式（参考 Swagger UI 的 Authorize 弹窗） -->
+            <div id="authBar" class="authbar" style="display:none">
+                <strong>🔒 Authorize</strong>
+                <span id="authType" class="count"></span>
+                <span id="authInputs"></span>
+                <button class="send-btn" onclick="saveAuth()">Apply</button>
+                <span id="authStatus" class="meta"></span>
+            </div>
 
-<div class="toolbar">
-    <input id="q" placeholder="filter by path / method / class..." oninput="render()">
-    <select id="restMethod" onchange="render()"><option value="">all methods</option></select>
-    <span id="chips-rpc"></span>
-    <span id="chips-tr"></span>
-</div>
+            <div class="toolbar">
+                <span id="chips-rpc"></span>
+                <span id="chips-tr"></span>
+            </div>
 
-<section class="panel" id="panel-rest">
-    <table>
-        <thead>
-        <tr><th>Method</th><th>Path</th><th>Handler</th><th>Params</th><th>Returns</th><th style="width:60px">Try</th></tr>
-        </thead>
-        <tbody id="restRows"></tbody>
-    </table>
-    <span class="count" id="restCount"></span>
-</section>
+            <section class="panel" id="panel-rest">
+                <div id="restRows"></div>
+                <span class="count" id="restCount"></span>
+            </section>
 
 <section class="panel" id="panel-ws">
     <table>
@@ -180,6 +470,9 @@
         <tbody id="traceRows"><tr><td colspan="5" class="empty">enter a traceId and query</td></tr></tbody>
     </table>
 </section>
+        </main>
+    </div>
+</div>
 
 <script>
     var API_URL = "__ARCHIMEDES_API_URL__";
@@ -209,14 +502,19 @@
 
     /* ---------- tabs ---------- */
 
+    var TAB_TITLES = { rest: 'REST', ws: 'WebSocket', rpc: 'RPC', tr: 'TR', config: '配置中心', db: '数据库监控', trace: '链路追踪' };
+
     function switchTab(name) {
         currentTab = name;
         for (var i = 0; i < TABS.length; i++) {
             var t = TABS[i];
-            document.getElementById('tabbtn-' + t).className = 'tab-btn' + (t === name ? ' active' : '');
+            document.getElementById('tabbtn-' + t).className = 'nav-item' + (t === name ? ' active' : '');
             document.getElementById('panel-' + t).className = 'panel' + (t === name ? ' active' : '');
         }
-        document.getElementById('q').style.display = (name === 'trace' || name === 'config' || name === 'db') ? 'none' : '';
+        document.getElementById('topTitle').textContent = TAB_TITLES[name] || name;
+        // 全局搜索/方法筛选只服务契约类 Tab；config/db/trace 有各自的搜索框
+        var showGlobalSearch = (name === 'rest' || name === 'ws' || name === 'rpc' || name === 'tr');
+        document.querySelector('.search').style.display = showGlobalSearch ? '' : 'none';
         document.getElementById('restMethod').style.display = name === 'rest' ? '' : 'none';
         document.getElementById('chips-rpc').style.display = name === 'rpc' ? '' : 'none';
         document.getElementById('chips-tr').style.display = name === 'tr' ? '' : 'none';
@@ -226,6 +524,24 @@
         if (name === 'db' && !dbLoaded) { dbLoaded = true; loadDb(); }
         if (history.replaceState) { history.replaceState(null, '', '#' + name); } else { location.hash = name; }
     }
+
+    /* ---------- 主题切换（深/浅色，localStorage 记忆） ---------- */
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        var btn = document.getElementById('themeBtn');
+        if (btn) { btn.textContent = theme === 'dark' ? '☀️' : '🌙'; }
+    }
+    function toggleTheme() {
+        var cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        var next = cur === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+        try { localStorage.setItem('archimedes_theme', next); } catch (e) { }
+    }
+    (function initTheme() {
+        var saved = 'light';
+        try { saved = localStorage.getItem('archimedes_theme') || 'light'; } catch (e) { }
+        applyTheme(saved);
+    })();
 
     function splitRpc(all) {
         var out = { rpc: [], tr: [] };
@@ -261,36 +577,43 @@
         var mf = document.getElementById('restMethod').value;
         var rows = all.filter(function (a) {
             var hay = (a.httpMethods.join(' ') + ' ' + a.paths.join(' ') + ' ' + a.controllerClass
-                + ' ' + (a.summary || '') + ' ' + (a.tag || '')).toLowerCase();
+                + ' ' + (a.summary || '') + ' ' + (a.operationDescription || '') + ' ' + (a.tag || '')).toLowerCase();
             return hay.indexOf(q) >= 0 && (!mf || a.httpMethods.indexOf(mf) >= 0);
         });
         restRendered = rows;
         document.getElementById('restCount').textContent = ' (' + rows.length + '/' + all.length + ')';
-        // 按模块（tag）分组渲染，每组前插入模块标题行
+        // 按模块（@ApiModule tag）分组，卡片式渲染
         var grouped = groupByTag(rows);
         var html = '';
         for (var g = 0; g < grouped.length; g++) {
             var group = grouped[g];
-            html += '<tr><td colspan="7" style="background:#eef2f7;font-weight:600;font-size:13px;padding:8px">'
-                + esc(group.tag) + (group.tagDesc ? ' <span class="meta">— ' + esc(group.tagDesc) + '</span>' : '')
-                + '</td></tr>';
+            html += '<div class="group-title"><span class="gt-name">' + esc(group.tag) + '</span>'
+                + (group.tagDesc ? '<span class="gt-desc">' + esc(group.tagDesc) + '</span>' : '')
+                + '<span class="gt-count">' + group.items.length + ' 个接口</span></div>';
             for (var j = 0; j < group.items.length; j++) {
                 var a = group.items[j];
                 var idx = rows.indexOf(a);
-                var cls = a.deprecated ? ' class="dep"' : '';
-                var desc = a.summary ? '<br><span class="meta">' + esc(a.summary) + '</span>' : '';
-                html += '<tr id="rest-r' + idx + '"' + cls + '>'
-                    + '<td class="m">' + esc(a.httpMethods.join(', ')) + '</td>'
-                    + '<td>' + a.paths.map(function (p) { return '<code>' + esc(p) + '</code>'; }).join('<br>') + '</td>'
-                    + '<td>' + esc(a.controllerClass.split('.').pop()) + '#' + esc(a.handlerMethod) + desc + '</td>'
-                    + '<td>' + esc(paramText(a.params)) + '</td>'
-                    + '<td><code>' + esc(a.returnType) + '</code></td>'
-                    + '<td><button class="try-btn" onclick="toggleTry(' + idx + ')">Try</button></td>'
-                    + '</tr>';
+                var verb = a.httpMethods.length ? a.httpMethods[0] : 'OTHER';
+                var verbClass = /^(GET|POST|PUT|DELETE|PATCH)$/.test(verb) ? verb : 'OTHER';
+                // 主标题优先接口摘要（@ApiDoc.summary），否则 handler 方法名
+                var title = a.summary || a.handlerMethod;
+                var handlerRef = esc(a.controllerClass.split('.').pop()) + '#' + esc(a.handlerMethod);
+                html += '<div class="api-card" id="rest-c' + idx + '">'
+                    + '<div class="api-row" onclick="toggleTry(' + idx + ')">'
+                    + '<span class="verb verb-' + verbClass + '">' + esc(a.httpMethods.join('/') || 'ANY') + '</span>'
+                    + '<div class="api-main">'
+                    + '<div class="api-title' + (a.deprecated ? ' dep' : '') + '">' + esc(title) + '</div>'
+                    + '<div class="api-sub"><span class="api-path">' + a.paths.map(esc).join('</span> <span class="api-path">') + '</span>'
+                    + '<span class="meta" style="margin-left:8px">' + handlerRef + '</span></div>'
+                    + (a.operationDescription ? '<div class="api-desc">' + esc(a.operationDescription) + '</div>' : '')
+                    + '</div>'
+                    + '<button class="try-btn" onclick="event.stopPropagation();toggleTry(' + idx + ')">Try</button>'
+                    + '</div>'
+                    + '</div>';
             }
         }
         document.getElementById('restRows').innerHTML = rows.length === 0
-            ? '<tr><td colspan="7" class="empty">no REST endpoints</td></tr>' : html;
+            ? '<div class="empty" style="padding:24px;text-align:center">no REST endpoints</div>' : html;
     }
 
     /** 按 tag（模块）分组，保持原序。 */
@@ -329,17 +652,18 @@
         if (wasOpen === i) { return; }
         openTry = i;
         tryApi = restRendered[i];
-        var row = document.getElementById('rest-r' + i);
-        var tr = document.createElement('tr');
-        tr.id = 'tryRow';
-        tr.innerHTML = '<td colspan="6" class="try-cell">' + tryFormHtml(tryApi) + '</td>';
-        row.parentNode.insertBefore(tr, row.nextSibling);
+        var card = document.getElementById('rest-c' + i);
+        var box = document.createElement('div');
+        box.id = 'tryRow';
+        box.className = 'try-cell';
+        box.innerHTML = tryFormHtml(tryApi);
+        card.appendChild(box);
         renderTryPathVars();
     }
 
-    function kvRowHtml(name, required, desc) {
+    function kvRowHtml(name, required, desc, example) {
         return '<div class="kv"><input placeholder="name" class="kv-k" value="' + esc(name) + '">'
-            + ' = <input placeholder="value" class="kv-v">'
+            + ' = <input placeholder="value" class="kv-v" value="' + esc(example || '') + '">'
             + (required ? '<span class="req" title="required">*</span>' : '')
             + (desc ? ' <span class="meta">' + esc(desc) + '</span>' : '')
             + '</div>';
@@ -406,8 +730,8 @@
         var queryRows = '', headerRows = '';
         var hasBodyParam = false;
         api.params.forEach(function (p) {
-            if (p.source === 'QUERY') { queryRows += kvRowHtml(p.name, p.required, p.description); }
-            if (p.source === 'HEADER') { headerRows += kvRowHtml(p.name, p.required, p.description); }
+            if (p.source === 'QUERY') { queryRows += kvRowHtml(p.name, p.required, p.description, p.example); }
+            if (p.source === 'HEADER') { headerRows += kvRowHtml(p.name, p.required, p.description, p.example); }
             if (p.source === 'BODY') { hasBodyParam = true; }
         });
         var mayHaveBody = hasBodyParam || methods.join(' ').match(/POST|PUT|PATCH|DELETE/);
@@ -417,13 +741,13 @@
         if (api.requestBodySchema) {
             try { bodyExample = JSON.stringify(exampleFromSchema(api.requestBodySchema), null, 2); } catch (e) { }
         }
-        var descLine = api.summary ? '<div class="meta" style="margin-bottom:6px">' + esc(api.summary)
-            + (api.operationDescription ? ' — ' + esc(api.operationDescription) : '') + '</div>' : '';
+        var descLine = api.summary ? '<div style="margin-bottom:8px"><span style="font-weight:600">' + esc(api.summary) + '</span>'
+            + (api.operationDescription ? ' <span class="meta">— ' + esc(api.operationDescription) + '</span>' : '') + '</div>' : '';
+        var verb0 = methods[0];
+        var verbCls = /^(GET|POST|PUT|DELETE|PATCH)$/.test(verb0) ? verb0 : 'OTHER';
         return descLine + '<div>'
-            + '<span style="display:inline-block;padding:4px 8px;background:#e8e8e8;color:#555;border-radius:3px;font-weight:600;font-size:12px;cursor:default">'
-                + esc(methods[0]) + '</span> '
-            + '<code style="background:#e8e8e8;padding:4px 8px;color:#555;border-radius:3px">'
-                + esc(api.paths[0]) + '</code>'
+            + '<span class="verb verb-' + verbCls + '">' + esc(verb0) + '</span> '
+            + '<code style="font-size:13px">' + esc(api.paths[0]) + '</code>'
             + '<input type="hidden" id="tryMethod" value="' + esc(methods[0]) + '">'
             + '<input type="hidden" id="tryPath" value="' + esc(api.paths[0]) + '">'
             + '<span id="tryPathVars"></span>'
@@ -667,7 +991,7 @@
     function renderWs(q) {
         var all = catalog.webSocketApis || [];
         var rows = all.filter(function (w) {
-            var hay = (w.kind + ' ' + w.path + ' ' + w.handlerClass).toLowerCase();
+            var hay = (w.kind + ' ' + w.path + ' ' + w.handlerClass + ' ' + (w.description || '')).toLowerCase();
             return hay.indexOf(q) >= 0;
         });
         document.getElementById('wsCount').textContent = ' (' + rows.length + '/' + all.length + ')';
@@ -676,9 +1000,10 @@
             : rows.map(function (w) {
                 var handler = w.handlerClass ? w.handlerClass.split('.').pop() : '';
                 if (w.handlerMethod) { handler += '#' + w.handlerMethod; }
+                var desc = w.description ? '<div class="meta">' + esc(w.description) + '</div>' : '';
                 return '<tr>'
                     + '<td><span class="kind">' + esc(w.kind) + '</span></td>'
-                    + '<td><code>' + esc(w.path) + '</code></td>'
+                    + '<td><code>' + esc(w.path) + '</code>' + desc + '</td>'
                     + '<td>' + esc(handler) + '</td>'
                     + '<td>' + (w.sockJs ? 'yes' : '') + '</td>'
                     + '</tr>';
@@ -707,7 +1032,8 @@
     function renderRpcInto(kind, all, q) {
         var pf = protoFilter[kind];
         var rows = all.filter(function (r) {
-            var hay = (r.protocol + ' ' + r.serviceName + ' ' + (r.version || '') + ' ' + (r.group || '')).toLowerCase();
+            var hay = (r.protocol + ' ' + r.serviceName + ' ' + (r.version || '') + ' ' + (r.group || '')
+                + ' ' + (r.description || '')).toLowerCase();
             return hay.indexOf(q) >= 0 && (pf === 'ALL' || r.protocol === pf);
         });
         document.getElementById(kind + 'Count').textContent = ' (' + rows.length + '/' + all.length + ')';
@@ -715,13 +1041,15 @@
             ? '<tr><td colspan="4" class="empty">no ' + (kind === 'tr' ? 'TR' : 'RPC') + ' services</td></tr>'
             : rows.map(function (r) {
                 var vg = [r.version, r.group].filter(Boolean).join(' / ');
+                var svcDesc = r.description ? '<div class="meta">' + esc(r.description) + '</div>' : '';
                 return '<tr>'
                     + '<td><span class="kind">' + esc(r.protocol) + '</span></td>'
-                    + '<td><code>' + esc(r.serviceName) + '</code>' + metaText(r.metadata) + '</td>'
+                    + '<td><code>' + esc(r.serviceName) + '</code>' + svcDesc + metaText(r.metadata) + '</td>'
                     + '<td>' + esc(vg) + '</td>'
                     + '<td>' + r.methods.map(function (m) {
-                        return '<code>' + esc(methodText(m)) + '</code>';
-                    }).join('<br>') + '</td>'
+                        var md = m.description ? ' <span class="meta">— ' + esc(m.description) + '</span>' : '';
+                        return '<div><code>' + esc(methodText(m)) + '</code>' + md + '</div>';
+                    }).join('') + '</td>'
                     + '</tr>';
             }).join('');
         renderChips(kind, all);
@@ -831,9 +1159,9 @@
                             ? ' <button class="try-btn" onclick="removeConfig(' + idx + ')">Remove</button>'
                             : '');
                 }
-                rows += '<tr' + (overridden ? ' style="background:#fffbe8"' : '') + '>'
+                rows += '<tr' + (overridden ? ' class="ovr-row"' : '') + '>'
                     + '<td><code>' + esc(en.key) + '</code>'
-                        + (en.sensitive ? ' <span class="kind" style="background:#fde8e8;color:#8a2c2c">sensitive</span>' : '')
+                        + (en.sensitive ? ' <span class="kind" style="background:var(--error);color:#fff">sensitive</span>' : '')
                     + '</td>'
                     + '<td id="cfgv-' + idx + '">' + esc(en.value === null || en.value === undefined ? '' : en.value) + '</td>'
                     + '<td class="meta">' + esc(src.name) + '</td>'
@@ -841,9 +1169,8 @@
                     + '</tr>';
             }
             if (rows) {
-                html += '<tr><td colspan="4" style="background:' + (isDynSrc ? '#fff3cd' : '#eef2f7')
-                    + ';font-weight:600;font-size:13px;padding:8px">' + esc(src.name)
-                    + (isDynSrc ? ' <span class="kind" style="background:#f7c948;color:#5a4500">dynamic override</span>' : '')
+                html += '<tr><td colspan="4" class="cfg-group">' + esc(src.name)
+                    + (isDynSrc ? ' <span class="kind" style="background:var(--warning);color:#5a4500">dynamic override</span>' : '')
                     + '</td></tr>' + rows;
             }
         }
@@ -970,17 +1297,16 @@
             var metrics;
             if (pool) {
                 metrics = '<span class="kind">' + esc(pool.type || 'pool') + '</span> '
-                    + ' active <b>' + esc(pool.activeConnections != null ? pool.activeConnections : '-') + '</b>'
-                    + ' · idle <b>' + esc(pool.idleConnections != null ? pool.idleConnections : '-') + '</b>'
-                    + ' · awaiting <b>' + esc(pool.threadsAwaitingConnection != null ? pool.threadsAwaitingConnection : '-') + '</b>'
-                    + ' · total <b>' + esc(pool.totalConnections != null ? pool.totalConnections : '-') + '</b>'
-                    + ' · max <b>' + esc(pool.maximumPoolSize != null ? pool.maximumPoolSize : '-') + '</b>'
-                    + ' · minIdle <b>' + esc(pool.minimumIdle != null ? pool.minimumIdle : '-') + '</b>';
+                    + ' active <b class="num">' + esc(pool.activeConnections != null ? pool.activeConnections : '-') + '</b>'
+                    + ' · idle <b class="num">' + esc(pool.idleConnections != null ? pool.idleConnections : '-') + '</b>'
+                    + ' · awaiting <b class="num">' + esc(pool.threadsAwaitingConnection != null ? pool.threadsAwaitingConnection : '-') + '</b>'
+                    + ' · total <b class="num">' + esc(pool.totalConnections != null ? pool.totalConnections : '-') + '</b>'
+                    + ' · max <b class="num">' + esc(pool.maximumPoolSize != null ? pool.maximumPoolSize : '-') + '</b>'
+                    + ' · minIdle <b class="num">' + esc(pool.minimumIdle != null ? pool.minimumIdle : '-') + '</b>';
             } else {
                 metrics = '<span class="meta">no pool metrics (non-Hikari or pool not started)</span>';
             }
-            return '<div style="display:inline-block;border:1px solid #ddd;border-radius:4px;'
-                + 'padding:8px 14px;margin:0 8px 8px 0;background:#fafbfd;font-size:13px">'
+            return '<div class="pool-card">'
                 + '<b>' + esc(s.name) + '</b> <span class="meta">' + esc(s.targetType.split('.').pop()) + '</span><br>'
                 + metrics + '</div>';
         }).join('');
@@ -1020,10 +1346,9 @@
                     ? '<span class="status-ok">OK</span>'
                     : '<span class="status-err" title="' + esc(r.errorMessage || '') + '">FAIL</span>';
                 var traceCell = r.traceId
-                    ? '<a href="javascript:void(0)" onclick="jumpToTrace(this.textContent)" '
-                        + 'style="color:#1a56b0"><code>' + esc(r.traceId) + '</code></a>'
+                    ? '<a href="javascript:void(0)" onclick="jumpToTrace(this.textContent)"><code>' + esc(r.traceId) + '</code></a>'
                     : '<span class="meta">-</span>';
-                return '<tr' + (r.slow ? ' style="background:#fff4f2"' : '') + '>'
+                return '<tr' + (r.slow ? ' class="slow-row"' : '') + '>'
                     + '<td><code>' + fmtTime(r.startTime) + '</code></td>'
                     + '<td>' + esc(r.dataSource) + '</td>'
                     + '<td><code>' + esc(r.sql) + '</code></td>'
@@ -1135,7 +1460,7 @@
         })
         .catch(function (e) {
             document.getElementById('restRows').innerHTML =
-                '<tr><td colspan="7">Failed to load: ' + esc(e) + '</td></tr>';
+                '<div class="empty" style="padding:24px;text-align:center">Failed to load: ' + esc(e) + '</div>';
         });
 
     /** SSE 热监听：建立 EventSource 连接，服务端检测到契约变化时自动推送更新。 */

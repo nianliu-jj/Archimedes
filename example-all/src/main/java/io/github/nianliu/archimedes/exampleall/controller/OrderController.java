@@ -3,7 +3,9 @@ package io.github.nianliu.archimedes.exampleall.controller;
 import io.github.nianliu.archimedes.exampleall.model.CreateOrderRequest;
 import io.github.nianliu.archimedes.exampleall.model.OrderItemPayload;
 import io.github.nianliu.archimedes.exampleall.model.OrderResponse;
+import io.github.nianliu.archimedes.annotation.ApiDoc;
 import io.github.nianliu.archimedes.annotation.ApiField;
+import io.github.nianliu.archimedes.annotation.ApiModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +37,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/orders")
+@ApiModule(name = "订单管理", description = "订单的增删改查演示，覆盖全部 HTTP 方法与参数形态")
 public class OrderController {
 
     private static final Logger log = LoggerFactory.getLogger(OrderController.class);
@@ -43,11 +46,12 @@ public class OrderController {
     private static final List<OrderItemPayload> SAMPLE_ITEMS = Collections.<OrderItemPayload>singletonList(sampleItem());
 
     /** GET + 可选查询参数 + @ApiField 说明 */
+    @ApiDoc(summary = "查询订单列表", description = "支持按状态过滤与分页，缺省返回全部订单")
     @GetMapping
     public List<OrderResponse> list(
-            @ApiField(value = "按订单状态过滤，缺省返回全部")
+            @ApiField(value = "按订单状态过滤，缺省返回全部", example = "PAID")
             @RequestParam(required = false) String status,
-            @ApiField(value = "分页大小，默认 10")
+            @ApiField(value = "分页大小，默认 10", example = "20")
             @RequestParam(defaultValue = "10") int size) {
         log.info("list orders, status={}, size={}", status, size);
         return Arrays.<OrderResponse>asList(
@@ -56,9 +60,10 @@ public class OrderController {
     }
 
     /** GET + 路径变量（调试面板路径变量输入框带说明悬浮） */
+    @ApiDoc(summary = "查询订单详情", description = "按订单号返回单个订单，演示 ResponseEntity 包装解包")
     @GetMapping("/{orderNo}")
     public ResponseEntity<OrderResponse> detail(
-            @ApiField(value = "订单号，形如 O-1001")
+            @ApiField(value = "订单号，形如 O-1001", example = "O-1001")
             @PathVariable String orderNo) {
         log.info("query order detail, orderNo={}", orderNo);
         return ResponseEntity.<OrderResponse>ok(
@@ -66,10 +71,11 @@ public class OrderController {
     }
 
     /** POST + 请求体（调试面板按 CreateOrderRequest 字段树自动预填示例 JSON）+ 请求头参数 */
+    @ApiDoc(summary = "创建订单", description = "提交订单请求体，返回生成的订单号；请求体字段结构在调试面板自动预填")
     @PostMapping
     public OrderResponse create(
             @RequestBody CreateOrderRequest request,
-            @ApiField(value = "幂等键，防止重复下单")
+            @ApiField(value = "幂等键，防止重复下单", example = "idem-20260708-001")
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         log.info("create order, title={}, idempotencyKey={}", request.getTitle(), idempotencyKey);
         return new OrderResponse("O-" + UUID.randomUUID().toString().substring(0, 8),
@@ -77,6 +83,7 @@ public class OrderController {
     }
 
     /** PUT：全量更新 */
+    @ApiDoc(summary = "更新订单", description = "按订单号全量更新订单内容")
     @PutMapping("/{orderNo}")
     public OrderResponse update(@PathVariable String orderNo, @RequestBody CreateOrderRequest request) {
         log.info("update order, orderNo={}", orderNo);
@@ -84,12 +91,14 @@ public class OrderController {
     }
 
     /** DELETE：void 返回 → 契约的 responseSchema 为空 */
+    @ApiDoc(summary = "取消订单", description = "按订单号取消，无响应体（responseSchema 为空）")
     @DeleteMapping("/{orderNo}")
     public void cancel(@PathVariable String orderNo) {
         log.info("cancel order, orderNo={}", orderNo);
     }
 
     /** 弃用端点：契约带 deprecated 标记，UI 中删除线展示 */
+    @ApiDoc(summary = "统计订单数（已弃用）", deprecated = true)
     @Deprecated
     @GetMapping("/legacy-count")
     public long legacyCount() {
