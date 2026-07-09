@@ -163,7 +163,7 @@ public class ArchimedesWatchController {
             appendField(sb.append("|res="), a.getResponseSchema());
             for (io.github.nianliu.archimedes.model.ResponseInfo r : a.getResponses()) {
                 sb.append("|RS").append(r.getCode()).append(':').append(r.getDescription())
-                        .append(':').append(r.getType());
+                        .append(':').append(r.getType()).append(':').append(r.getExample());
                 appendField(sb.append(':'), r.getSchema());
             }
             sb.append('\n');

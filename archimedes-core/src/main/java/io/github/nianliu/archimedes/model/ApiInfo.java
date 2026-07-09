@@ -1,5 +1,6 @@
 package io.github.nianliu.archimedes.model;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -44,7 +45,7 @@ public class ApiInfo {
     /** 模块描述（来自 @ApiModule#description，可为空）。 */
     private String tagDescription;
     /** 声明的响应契约列表（来自自有 @ApiResponse；默认空列表）。 */
-    private java.util.List<ResponseInfo> responses = java.util.Collections.emptyList();
+    private List<ResponseInfo> responses = Collections.emptyList();
 
     public String getControllerClass() {
         return controllerClass;
@@ -166,11 +167,11 @@ public class ApiInfo {
         this.tagDescription = tagDescription;
     }
 
-    public java.util.List<ResponseInfo> getResponses() {
+    public List<ResponseInfo> getResponses() {
         return responses;
     }
 
-    public void setResponses(java.util.List<ResponseInfo> responses) {
-        this.responses = responses == null ? java.util.Collections.<ResponseInfo>emptyList() : responses;
+    public void setResponses(List<ResponseInfo> responses) {
+        this.responses = responses == null ? Collections.<ResponseInfo>emptyList() : responses;
     }
 }

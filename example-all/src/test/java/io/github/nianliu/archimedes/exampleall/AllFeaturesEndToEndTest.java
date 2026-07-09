@@ -115,6 +115,14 @@ class AllFeaturesEndToEndTest {
                 .findFirst().orElseThrow();
         List<Map<String, Object>> responses = (List<Map<String, Object>>) detail.get("responses");
         assertThat(responses).extracting(r -> r.get("code")).contains(200, 404);
+
+        // FIX1 端到端守卫：orderNo 是 @PathVariable（绑定必填）且标了 @ApiParam 但未写 required，
+        // @ApiParam 只能上调、不得把必填降为可选，故契约中仍应 required==true。
+        List<Map<String, Object>> params = (List<Map<String, Object>>) detail.get("params");
+        assertThat(params).anySatisfy(p -> {
+            assertThat(p.get("name")).isEqualTo("orderNo");
+            assertThat(p.get("required")).isEqualTo(true);
+        });
     }
 
     @Test

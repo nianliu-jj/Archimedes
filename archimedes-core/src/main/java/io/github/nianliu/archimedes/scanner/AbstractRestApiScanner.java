@@ -168,7 +168,8 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
     /**
      * 单参数 → ParamInfo：先按绑定注解定来源/解析名/绑定必填，
      * 再套自有 @ApiParam（参数级优先，方法级按 name 匹配）决定说明/示例/必填——
-     * 命中 @ApiParam 用其 required，未命中回退绑定注解 required；说明/示例命中时取 @ApiParam，否则空串。
+     * 必填取「绑定注解必填 或 @ApiParam(required=true)」的并集（@ApiParam 只能上调不能降级）；
+     * 说明/示例命中时取 @ApiParam，否则空串。
      */
     private ParamInfo toParamInfo(MethodParameter parameter) {
         String type = parameter.getGenericParameterType().getTypeName();
@@ -204,12 +205,13 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
             bindingRequired = false;
         }
 
-        // 2) 套 @ApiParam：命中则说明/示例/必填取注解，未命中必填回退绑定注解、说明/示例空串
+        // 2) 套 @ApiParam：命中则说明/示例取注解、未命中空串；必填对绑定注解只上调不降级
         ApiParam apiParam = TypeSchemaResolver.paramApiParam(
                 parameter.getMethod(), parameter.getParameterAnnotations(), name);
         String description = apiParam != null ? apiParam.value() : "";
         String example = apiParam != null ? apiParam.example() : "";
-        boolean required = apiParam != null ? apiParam.required() : bindingRequired;
+        // @ApiParam 只能把参数上调为必填（其 required 默认 false，不能把绑定注解已确定的必填静默降为可选）
+        boolean required = (apiParam != null && apiParam.required()) || bindingRequired;
 
         // 3) 组装
         ParamInfo pi = new ParamInfo(name, source, type, required, description);

@@ -151,7 +151,7 @@ class TypeSchemaResolverTest {
         @ApiParam(name = "code", value = "方法级说明")
         void precedence(@ApiParam(value = "参数级说明") String code) { }
 
-        @ApiResponse(code = 200, description = "成功", type = OrderItem.class)
+        @ApiResponse(code = 200, description = "成功", type = OrderItem.class, example = "{\"productId\":1}")
         @ApiResponse(code = 404, description = "订单不存在")
         void responses() { }
     }
@@ -198,6 +198,8 @@ class TypeSchemaResolverTest {
         assertThat(ok.getDescription()).isEqualTo("成功");
         assertThat(ok.getType()).isEqualTo("OrderItem");
         assertThat(ok.getSchema()).isNotNull();
+        // FIX2：@ApiResponse#example 透传到 ResponseInfo
+        assertThat(ok.getExample()).isEqualTo("{\"productId\":1}");
         ResponseInfo notFound = responses.stream().filter(r -> r.getCode() == 404).findFirst().orElseThrow();
         assertThat(notFound.getType()).isNull();
         assertThat(notFound.getSchema()).isNull();

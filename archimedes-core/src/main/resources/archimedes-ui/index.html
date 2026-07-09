@@ -726,15 +726,21 @@
             + '<tbody>' + rows + '</tbody></table>';
     }
 
-    /* 声明的响应（@ApiResponse）：状态码 + 说明 +（有 schema 时）字段表；无声明返回空串。 */
+    /* 声明的响应（@ApiResponse）：状态码 + 说明 +（有示例时）示例行 +（有 schema 时）字段表；无声明返回空串。 */
     function responsesHtml(api) {
         if (!api.responses || !api.responses.length) { return ''; }
         var rows = api.responses.map(function (r) {
             var typeLabel = r.type ? ' <span class="count">' + esc(r.type) + '</span>' : '';
-            var table = r.schema ? schemaTableHtml('', r.schema) : '';
+            // 状态码语义着色：2xx 绿(GET)、3xx 中性(PUT)、4xx/5xx 红(DELETE)
+            var codeCls = r.code < 300 ? 'GET' : (r.code < 400 ? 'PUT' : 'DELETE');
+            // 示例：非空时单独渲染一行（用户数据经 esc 转义）
+            var exampleLine = r.example ? '<div class="meta">example: <code>' + esc(r.example) + '</code></div>' : '';
+            // 字段表标题：有类型用类型（已 esc，schemaTableHtml 内部不再转义 title），否则 'Body'
+            var table = r.schema ? schemaTableHtml(r.type ? esc(r.type) : 'Body', r.schema) : '';
             return '<div class="resp-row"><span class="verb verb-' +
-                (r.code < 300 ? 'GET' : 'DELETE') + '">' + esc(String(r.code)) + '</span> '
-                + '<span>' + esc(r.description || '') + '</span>' + typeLabel + '</div>' + table;
+                codeCls + '">' + esc(String(r.code)) + '</span> '
+                + '<span>' + esc(r.description || '') + '</span>' + typeLabel + '</div>'
+                + exampleLine + table;
         }).join('');
         return '<h3>Responses</h3>' + rows;
     }

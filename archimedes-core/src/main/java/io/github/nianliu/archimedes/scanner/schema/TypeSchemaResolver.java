@@ -131,7 +131,8 @@ public final class TypeSchemaResolver {
             boolean hasType = type != null && type != Void.class && type != void.class;
             FieldInfo schema = hasType ? resolve(type) : null;
             String typeName = hasType ? type.getSimpleName() : null;
-            result.add(new ResponseInfo(r.code(), r.description(), typeName, schema));
+            // example 空串原样保留（与 @ApiParam example 一致），保持简单一致
+            result.add(new ResponseInfo(r.code(), r.description(), typeName, r.example(), schema));
         }
         return result;
     }

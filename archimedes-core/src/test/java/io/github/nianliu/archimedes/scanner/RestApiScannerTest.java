@@ -115,6 +115,17 @@ class RestApiScannerTest {
     }
 
     @Test
+    void apiParamCannotDowngradeBindingRequired() {
+        // FIX1 守卫：detail 的 @PathVariable code 标了 @ApiParam 但未写 required（默认 false），
+        // @ApiParam 只能上调必填、不能把绑定注解已确定的必填降为可选，故仍应 required==true。
+        List<ApiInfo> apis = scannerFor(SampleControllers.UserController.class).scan();
+        ParamInfo code = find(apis, "/api/users/detail/{code}").getParams().stream()
+                .filter(p -> p.getName().equals("code")).findFirst().orElseThrow();
+        assertThat(code.getSource()).isEqualTo(ParamSource.PATH);
+        assertThat(code.isRequired()).isTrue();
+    }
+
+    @Test
     void cachesResult() {
         RestApiScanner scanner = scannerFor(SampleControllers.UserController.class);
         assertThat(scanner.scan()).isSameAs(scanner.scan());

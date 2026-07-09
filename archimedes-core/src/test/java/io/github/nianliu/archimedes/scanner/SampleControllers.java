@@ -54,6 +54,15 @@ public final class SampleControllers {
         public String beta() {
             return "";
         }
+
+        /**
+         * detail：@PathVariable + @ApiParam 但未写 required（默认 false）——
+         * 用于守卫 FIX1：绑定注解已定的必填不得被 @ApiParam 静默降级。
+         */
+        @GetMapping("/detail/{code}")
+        public String detail(@ApiParam(value = "编码", example = "C-1") @PathVariable String code) {
+            return "";
+        }
     }
 
     /** 用给定 Controller 类构造并初始化一个 RequestMappingHandlerMapping。 */
