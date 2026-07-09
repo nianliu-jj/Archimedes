@@ -1,5 +1,6 @@
 package io.github.nianliu.archimedes.exampleall.ws;
 
+import io.github.nianliu.archimedes.annotation.ApiModule;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
@@ -11,6 +12,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
  * @author nianliu-jj
  * @since 2026-07-05
  */
+@ApiModule(name = "回声 WebSocketHandler", description = "Spring WebSocketHandler 文本回声，经 WebSocketConfigurer 注册（含 SockJS）")
 public class EchoWebSocketHandler extends TextWebSocketHandler {
 
     /** 文本回声 */

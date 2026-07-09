@@ -1,5 +1,6 @@
 package io.github.nianliu.archimedes.exampleall.ws;
 
+import io.github.nianliu.archimedes.annotation.ApiModule;
 import jakarta.websocket.OnMessage;
 import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @ServerEndpoint("/ws/native/{room}")
+@ApiModule(name = "原生 WebSocket 端点", description = "JSR-356 @ServerEndpoint 房间聊天端点，路径含 {room} 变量")
 public class NativeChatEndpoint {
 
     /** 简单回声：演示端点可用即可，扫描只关心 @ServerEndpoint 元数据 */

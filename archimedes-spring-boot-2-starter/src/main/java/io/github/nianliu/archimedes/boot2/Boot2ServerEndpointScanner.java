@@ -1,6 +1,7 @@
 package io.github.nianliu.archimedes.boot2;
 
 import io.github.nianliu.archimedes.model.WsApiInfo;
+import io.github.nianliu.archimedes.scanner.schema.TypeSchemaResolver;
 import io.github.nianliu.archimedes.scanner.ws.WebSocketApiContributor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.util.ClassUtils;
@@ -31,8 +32,11 @@ public class Boot2ServerEndpointScanner implements WebSocketApiContributor {
             Class<?> userClass = ClassUtils.getUserClass(bean);
             ServerEndpoint annotation = userClass.getAnnotation(ServerEndpoint.class);
             if (annotation != null) {
-                result.add(new WsApiInfo(WsApiInfo.KIND_SERVER_ENDPOINT, annotation.value(),
-                        userClass.getName(), null, false));
+                WsApiInfo info = new WsApiInfo(WsApiInfo.KIND_SERVER_ENDPOINT, annotation.value(),
+                        userClass.getName(), null, false);
+                // @ServerEndpoint 无固定业务方法可标 @ApiDoc，故端点描述取类上的 @ApiModule#description
+                info.setDescription(TypeSchemaResolver.tagDescriptionOrNull(userClass.getAnnotations()));
+                result.add(info);
             }
         }
         result.sort(Comparator.comparing(WsApiInfo::getPath, Comparator.nullsLast(Comparator.naturalOrder())));

@@ -1,5 +1,7 @@
 package io.github.nianliu.archimedes.exampleall.trace;
 
+import io.github.nianliu.archimedes.annotation.ApiDoc;
+import io.github.nianliu.archimedes.annotation.ApiModule;
 import io.github.nianliu.archimedes.exampleall.trace.AsyncWorker;
 import io.github.nianliu.archimedes.trace.propagation.MdcWrappers;
 import org.slf4j.Logger;
@@ -29,6 +31,7 @@ import java.util.concurrent.ExecutorService;
  */
 @RestController
 @RequestMapping("/trace")
+@ApiModule(name = "链路追踪演示", description = "四条路径演示 traceId 跨线程传递，用响应头 X-Trace-Id 回查链路日志")
 public class TraceDemoController {
 
     private static final Logger log = LoggerFactory.getLogger(TraceDemoController.class);
@@ -42,6 +45,7 @@ public class TraceDemoController {
     }
 
     /** 基线：仅请求线程打日志 */
+    @ApiDoc(summary = "同步基线", description = "仅请求线程打一条日志，作为 traceId 基线对照")
     @GetMapping("/sync")
     public String sync() {
         log.info("sync endpoint invoked");
@@ -49,6 +53,7 @@ public class TraceDemoController {
     }
 
     /** @Async 路径：请求线程 + all-async-* 线程各一条日志 */
+    @ApiDoc(summary = "@Async 异步路径", description = "@Async 线程由 taskExecutor 自动装饰，日志与请求线程聚合在同一 traceId")
     @GetMapping("/async")
     public String asyncPath() {
         log.info("async endpoint invoked on request thread");
@@ -57,6 +62,7 @@ public class TraceDemoController {
     }
 
     /** 自定义池路径：bizPool 已被 Archimedes 自动包装，任务内 MDC 自动就位 */
+    @ApiDoc(summary = "自定义线程池路径", description = "bizPool 被 BeanPostProcessor 自动包装，提交任务内 MDC 自动就位")
     @GetMapping("/pool")
     public String pool() {
         log.info("pool endpoint invoked on request thread");
@@ -65,6 +71,7 @@ public class TraceDemoController {
     }
 
     /** 手动包装路径：commonPool 不归容器管，需 MdcWrappers 一行包装 */
+    @ApiDoc(summary = "手动包装路径", description = "commonPool 不归容器管理，需 MdcWrappers.wrap 手动传递 MDC（自动化盲区示范）")
     @GetMapping("/manual")
     public String manual() {
         log.info("manual endpoint invoked on request thread");
