@@ -4,8 +4,9 @@ import io.github.nianliu.archimedes.exampleall.model.CreateOrderRequest;
 import io.github.nianliu.archimedes.exampleall.model.OrderItemPayload;
 import io.github.nianliu.archimedes.exampleall.model.OrderResponse;
 import io.github.nianliu.archimedes.annotation.ApiDoc;
-import io.github.nianliu.archimedes.annotation.ApiField;
 import io.github.nianliu.archimedes.annotation.ApiModule;
+import io.github.nianliu.archimedes.annotation.ApiParam;
+import io.github.nianliu.archimedes.annotation.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -45,13 +46,13 @@ public class OrderController {
     /** 演示用固定明细（真实业务应查库） */
     private static final List<OrderItemPayload> SAMPLE_ITEMS = Collections.<OrderItemPayload>singletonList(sampleItem());
 
-    /** GET + 可选查询参数 + @ApiField 说明 */
+    /** GET + 可选查询参数 + @ApiParam 说明 */
     @ApiDoc(summary = "查询订单列表", description = "支持按状态过滤与分页，缺省返回全部订单")
     @GetMapping
     public List<OrderResponse> list(
-            @ApiField(value = "按订单状态过滤，缺省返回全部", example = "PAID")
+            @ApiParam(value = "按订单状态过滤，缺省返回全部", example = "PAID")
             @RequestParam(required = false) String status,
-            @ApiField(value = "分页大小，默认 10", example = "20")
+            @ApiParam(value = "分页大小，默认 10", example = "20")
             @RequestParam(defaultValue = "10") int size) {
         log.info("list orders, status={}, size={}", status, size);
         return Arrays.<OrderResponse>asList(
@@ -61,9 +62,11 @@ public class OrderController {
 
     /** GET + 路径变量（调试面板路径变量输入框带说明悬浮） */
     @ApiDoc(summary = "查询订单详情", description = "按订单号返回单个订单，演示 ResponseEntity 包装解包")
+    @ApiResponse(code = 200, description = "命中订单", type = OrderResponse.class)
+    @ApiResponse(code = 404, description = "订单不存在")
     @GetMapping("/{orderNo}")
     public ResponseEntity<OrderResponse> detail(
-            @ApiField(value = "订单号，形如 O-1001", example = "O-1001")
+            @ApiParam(value = "订单号，形如 O-1001", example = "O-1001")
             @PathVariable String orderNo) {
         log.info("query order detail, orderNo={}", orderNo);
         return ResponseEntity.<OrderResponse>ok(
@@ -75,7 +78,7 @@ public class OrderController {
     @PostMapping
     public OrderResponse create(
             @RequestBody CreateOrderRequest request,
-            @ApiField(value = "幂等键，防止重复下单", example = "idem-20260708-001")
+            @ApiParam(value = "幂等键，防止重复下单", example = "idem-20260708-001")
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         log.info("create order, title={}, idempotencyKey={}", request.getTitle(), idempotencyKey);
         return new OrderResponse("O-" + UUID.randomUUID().toString().substring(0, 8),

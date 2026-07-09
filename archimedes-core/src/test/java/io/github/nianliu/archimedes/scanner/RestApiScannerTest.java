@@ -92,6 +92,29 @@ class RestApiScannerTest {
     }
 
     @Test
+    void requiredFromApiParamAndResponses() {
+        List<ApiInfo> apis = scannerFor(SampleControllers.UserController.class).scan();
+        ApiInfo getUser = find(apis, "/api/users/{id}");
+
+        // 方法级 @ApiParam(name="id", required=true) 命中路径变量 id
+        ParamInfo id = getUser.getParams().stream()
+                .filter(p -> p.getName().equals("id")).findFirst().orElseThrow();
+        assertThat(id.isRequired()).isTrue();
+
+        // @ApiResponse 两条
+        assertThat(getUser.getResponses()).extracting(r -> r.getCode())
+                .containsExactlyInAnyOrder(200, 404);
+    }
+
+    @Test
+    void requiredFallsBackToBindingWhenNoApiParam() {
+        List<ApiInfo> apis = scannerFor(SampleControllers.UserController.class).scan();
+        // create 的 @RequestBody 无 @ApiParam → 必填回退绑定注解（@RequestBody 默认 required=true）
+        ParamInfo body = find(apis, "/api/users").getParams().get(0);
+        assertThat(body.isRequired()).isTrue();
+    }
+
+    @Test
     void cachesResult() {
         RestApiScanner scanner = scannerFor(SampleControllers.UserController.class);
         assertThat(scanner.scan()).isSameAs(scanner.scan());

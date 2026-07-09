@@ -86,18 +86,6 @@ public final class TypeSchemaResolver {
         }
     }
 
-    /** 从方法参数注解中提取参数说明（{@code @ApiField#value}），无则空串。 */
-    public static String paramDescription(Annotation[] annotations) {
-        ApiField f = find(annotations, ApiField.class);
-        return f != null ? f.value() : "";
-    }
-
-    /** 从方法参数注解中提取示例值（{@code @ApiField#example}），无则空串。 */
-    public static String paramExample(Annotation[] annotations) {
-        ApiField f = find(annotations, ApiField.class);
-        return f != null ? f.example() : "";
-    }
-
     /**
      * 解析某个 REST 参数命中的 {@code @ApiParam}：参数级优先，其次方法级（按 name 与参数名匹配）。
      * <p>方法级读取用 {@code method.getAnnotationsByType(ApiParam.class)}，

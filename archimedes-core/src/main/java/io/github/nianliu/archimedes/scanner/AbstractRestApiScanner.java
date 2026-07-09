@@ -1,5 +1,6 @@
 package io.github.nianliu.archimedes.scanner;
 
+import io.github.nianliu.archimedes.annotation.ApiParam;
 import io.github.nianliu.archimedes.config.ArchimedesApiProperties;
 import io.github.nianliu.archimedes.model.ApiInfo;
 import io.github.nianliu.archimedes.model.FieldInfo;
@@ -108,6 +109,8 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         Class<?> controllerType = handlerMethod.getBeanType();
         info.setTag(TypeSchemaResolver.tagName(controllerType.getAnnotations(), controllerType.getName()));
         info.setTagDescription(TypeSchemaResolver.tagDescription(controllerType.getAnnotations()));
+        // 响应契约：读取自有 @ApiResponse（按状态码分条）
+        info.setResponses(TypeSchemaResolver.responses(method));
         return info;
     }
 
@@ -163,52 +166,53 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
     }
 
     /**
-     * 单参数 → ParamInfo：按 @RequestParam/@PathVariable/@RequestHeader/@RequestBody 注解逐一匹配，
-     * 归类到对应参数来源（QUERY/PATH/HEADER/BODY）；均未命中归为 OTHER。
-     * 参数名优先取注解显式 name/value，缺省回退方法签名参数名。
+     * 单参数 → ParamInfo：先按绑定注解定来源/解析名/绑定必填，
+     * 再套自有 @ApiParam（参数级优先，方法级按 name 匹配）决定说明/示例/必填——
+     * 命中 @ApiParam 用其 required，未命中回退绑定注解 required；说明/示例命中时取 @ApiParam，否则空串。
      */
     private ParamInfo toParamInfo(MethodParameter parameter) {
         String type = parameter.getGenericParameterType().getTypeName();
-        // 参数说明：读取自有 @ApiField 注解（无则空串）
-        String description = TypeSchemaResolver.paramDescription(parameter.getParameterAnnotations());
-        // 参数校验规则：javax/jakarta validation 注解提取（@Pattern/@Size/@Min/@Max 等）
         java.util.Map<String, Object> validation = TypeSchemaResolver.paramValidation(parameter.getParameterAnnotations());
-        // 参数示例值：@ApiField#example 反射读取（无则空串），供 UI 在线调试预填
-        String example = TypeSchemaResolver.paramExample(parameter.getParameterAnnotations());
 
-        ParamInfo pi;
+        // 1) 定来源、解析名、绑定注解必填
+        ParamSource source;
+        String name;
+        boolean bindingRequired;
         RequestParam requestParam = parameter.getParameterAnnotation(RequestParam.class);
-        if (requestParam != null) {
-            String name = firstNonEmpty(requestParam.name(), requestParam.value(), fallbackName(parameter));
-            pi = new ParamInfo(name, ParamSource.QUERY, type, requestParam.required(), description);
-            pi.setValidation(validation);
-            pi.setExample(example);
-            return pi;
-        }
         PathVariable pathVariable = parameter.getParameterAnnotation(PathVariable.class);
-        if (pathVariable != null) {
-            String name = firstNonEmpty(pathVariable.name(), pathVariable.value(), fallbackName(parameter));
-            pi = new ParamInfo(name, ParamSource.PATH, type, pathVariable.required(), description);
-            pi.setValidation(validation);
-            pi.setExample(example);
-            return pi;
-        }
         RequestHeader requestHeader = parameter.getParameterAnnotation(RequestHeader.class);
-        if (requestHeader != null) {
-            String name = firstNonEmpty(requestHeader.name(), requestHeader.value(), fallbackName(parameter));
-            pi = new ParamInfo(name, ParamSource.HEADER, type, requestHeader.required(), description);
-            pi.setValidation(validation);
-            pi.setExample(example);
-            return pi;
-        }
         RequestBody requestBody = parameter.getParameterAnnotation(RequestBody.class);
-        if (requestBody != null) {
-            pi = new ParamInfo(fallbackName(parameter), ParamSource.BODY, type, requestBody.required(), description);
-            pi.setValidation(validation);
-            pi.setExample(example);
-            return pi;
+        if (requestParam != null) {
+            source = ParamSource.QUERY;
+            name = firstNonEmpty(requestParam.name(), requestParam.value(), fallbackName(parameter));
+            bindingRequired = requestParam.required();
+        } else if (pathVariable != null) {
+            source = ParamSource.PATH;
+            name = firstNonEmpty(pathVariable.name(), pathVariable.value(), fallbackName(parameter));
+            bindingRequired = pathVariable.required();
+        } else if (requestHeader != null) {
+            source = ParamSource.HEADER;
+            name = firstNonEmpty(requestHeader.name(), requestHeader.value(), fallbackName(parameter));
+            bindingRequired = requestHeader.required();
+        } else if (requestBody != null) {
+            source = ParamSource.BODY;
+            name = fallbackName(parameter);
+            bindingRequired = requestBody.required();
+        } else {
+            source = ParamSource.OTHER;
+            name = fallbackName(parameter);
+            bindingRequired = false;
         }
-        pi = new ParamInfo(fallbackName(parameter), ParamSource.OTHER, type, false, description);
+
+        // 2) 套 @ApiParam：命中则说明/示例/必填取注解，未命中必填回退绑定注解、说明/示例空串
+        ApiParam apiParam = TypeSchemaResolver.paramApiParam(
+                parameter.getMethod(), parameter.getParameterAnnotations(), name);
+        String description = apiParam != null ? apiParam.value() : "";
+        String example = apiParam != null ? apiParam.example() : "";
+        boolean required = apiParam != null ? apiParam.required() : bindingRequired;
+
+        // 3) 组装
+        ParamInfo pi = new ParamInfo(name, source, type, required, description);
         pi.setValidation(validation);
         pi.setExample(example);
         return pi;

@@ -1,8 +1,8 @@
 package io.github.nianliu.archimedes.exampleall.controller;
 
 import io.github.nianliu.archimedes.annotation.ApiDoc;
-import io.github.nianliu.archimedes.annotation.ApiField;
 import io.github.nianliu.archimedes.annotation.ApiModule;
+import io.github.nianliu.archimedes.annotation.ApiParam;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,7 +42,7 @@ public class OrderDbController {
     @ApiDoc(summary = "按主键查询订单", description = "PreparedStatement 单参查询，演示绑定参数捕获")
     @GetMapping("/api/db/orders/{id}")
     public Map<String, Object> getOrder(
-            @ApiField(value = "订单主键 ID", example = "1")
+            @ApiParam(value = "订单主键 ID", example = "1")
             @PathVariable int id) {
         return jdbc.queryForMap("SELECT * FROM orders_db WHERE id = ?", id);
     }
@@ -51,11 +51,11 @@ public class OrderDbController {
     @ApiDoc(summary = "写入订单", description = "MERGE 写入，演示更新类 SQL 的影响行数统计")
     @PostMapping("/api/db/orders")
     public Map<String, Object> createOrder(
-            @ApiField(value = "订单主键 ID", example = "100")
+            @ApiParam(value = "订单主键 ID", example = "100")
             @RequestParam int id,
-            @ApiField(value = "商品名称", example = "键盘")
+            @ApiParam(value = "商品名称", example = "键盘")
             @RequestParam String item,
-            @ApiField(value = "订单金额", example = "199.00")
+            @ApiParam(value = "订单金额", example = "199.00")
             @RequestParam double amount) {
         int affected = jdbc.update("MERGE INTO orders_db KEY(id) VALUES (?, ?, ?)", id, item, amount);
         return Map.of("affected", affected);

@@ -1,16 +1,17 @@
 package io.github.nianliu.archimedes.scanner.schema;
 
 import io.github.nianliu.archimedes.annotation.ApiDoc;
-import io.github.nianliu.archimedes.annotation.ApiField;
 import io.github.nianliu.archimedes.annotation.ApiModule;
+import io.github.nianliu.archimedes.annotation.ApiParam;
 import org.junit.jupiter.api.Test;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * TypeSchemaResolver 描述提取门面单测：验证 @ApiModule/@ApiDoc/@ApiField 的读取、
+ * TypeSchemaResolver 描述提取门面单测：验证 @ApiModule/@ApiDoc/@ApiParam 的读取、
  * 别名回退（name→value、summary→value）、无注解回退类简名、deprecated 与 example。
  *
  * @author nianliu-jj
@@ -31,7 +32,7 @@ class SchemaFacadeTest {
         @ApiDoc(summary = "创建", description = "下单", deprecated = true)
         void full() { }
 
-        void bare(@ApiField(value = "关键字", example = "kw") String q) { }
+        void bare(@ApiParam(value = "关键字", example = "kw") String q) { }
     }
 
     private static Annotation[] method(String name) throws Exception {
@@ -67,10 +68,12 @@ class SchemaFacadeTest {
 
     @Test
     void paramDescriptionAndExample() throws Exception {
-        Annotation[] paramAnns = Handlers.class
-                .getDeclaredMethod("bare", String.class)
-                .getParameterAnnotations()[0];
-        assertThat(TypeSchemaResolver.paramDescription(paramAnns)).isEqualTo("关键字");
-        assertThat(TypeSchemaResolver.paramExample(paramAnns)).isEqualTo("kw");
+        // 参数说明/示例现由自有 @ApiParam 提供（参数级就近命中）
+        Method bare = Handlers.class.getDeclaredMethod("bare", String.class);
+        Annotation[] paramAnns = bare.getParameterAnnotations()[0];
+        ApiParam p = TypeSchemaResolver.paramApiParam(bare, paramAnns, "q");
+        assertThat(p).isNotNull();
+        assertThat(p.value()).isEqualTo("关键字");
+        assertThat(p.example()).isEqualTo("kw");
     }
 }
