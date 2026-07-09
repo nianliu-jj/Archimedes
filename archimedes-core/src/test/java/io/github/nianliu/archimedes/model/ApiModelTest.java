@@ -44,4 +44,19 @@ class ApiModelTest {
         ws.setDescription("回声端点");
         assertThat(ws.getDescription()).isEqualTo("回声端点");
     }
+
+    @org.junit.jupiter.api.Test
+    void apiInfoResponsesDefaultEmptyAndSettable() {
+        ApiInfo info = new ApiInfo();
+        org.assertj.core.api.Assertions.assertThat(info.getResponses()).isEmpty();
+
+        ResponseInfo r = new ResponseInfo(404, "订单不存在", null, null);
+        info.setResponses(java.util.List.of(r));
+        org.assertj.core.api.Assertions.assertThat(info.getResponses()).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(info.getResponses().get(0).getCode()).isEqualTo(404);
+        org.assertj.core.api.Assertions.assertThat(info.getResponses().get(0).getDescription()).isEqualTo("订单不存在");
+
+        info.setResponses(null); // null 归一为空列表
+        org.assertj.core.api.Assertions.assertThat(info.getResponses()).isEmpty();
+    }
 }
