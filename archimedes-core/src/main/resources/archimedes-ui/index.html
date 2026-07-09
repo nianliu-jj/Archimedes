@@ -202,6 +202,7 @@
         .api-title.dep { text-decoration: line-through; color: var(--text-3); }
         .api-sub { font-size: 12px; color: var(--text-3); margin-top: 3px; word-break: break-all; }
         .api-desc { font-size: 12.5px; color: var(--text-2); margin-top: 4px; }
+        .resp-row { display:flex; align-items:center; gap:8px; margin:6px 0; }
         .api-path { font-family: "JetBrains Mono", Consolas, monospace; font-size: 12.5px; color: var(--text-2); }
 
         /* HTTP 方法 / 协议 彩色 chip */
@@ -725,6 +726,19 @@
             + '<tbody>' + rows + '</tbody></table>';
     }
 
+    /* 声明的响应（@ApiResponse）：状态码 + 说明 +（有 schema 时）字段表；无声明返回空串。 */
+    function responsesHtml(api) {
+        if (!api.responses || !api.responses.length) { return ''; }
+        var rows = api.responses.map(function (r) {
+            var typeLabel = r.type ? ' <span class="count">' + esc(r.type) + '</span>' : '';
+            var table = r.schema ? schemaTableHtml('', r.schema) : '';
+            return '<div class="resp-row"><span class="verb verb-' +
+                (r.code < 300 ? 'GET' : 'DELETE') + '">' + esc(String(r.code)) + '</span> '
+                + '<span>' + esc(r.description || '') + '</span>' + typeLabel + '</div>' + table;
+        }).join('');
+        return '<h3>Responses</h3>' + rows;
+    }
+
     function tryFormHtml(api) {
         var methods = api.httpMethods.length ? api.httpMethods : ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
         var queryRows = '', headerRows = '';
@@ -764,6 +778,7 @@
                 : '')
             + schemaTableHtml('Request Fields', api.requestBodySchema)
             + schemaTableHtml('Response Fields', api.responseSchema)
+            + responsesHtml(api)
             + '<div class="result" id="tryResult"></div>';
     }
 
