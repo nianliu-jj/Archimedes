@@ -47,12 +47,13 @@ class AnnotationContractTest {
     }
 
     @Test
-    void apiFieldTargetsParameterAndField() throws Exception {
+    void apiFieldTargetsFieldOnly() throws Exception {
+        // @ApiField 已收窄为仅 FIELD 目标（参数描述归 @ApiParam）。
         ApiField f = Sample.class.getDeclaredField("itemId").getAnnotation(ApiField.class);
         assertThat(f.value()).isEqualTo("商品ID");
         assertThat(f.required()).isTrue();
         assertThat(f.example()).isEqualTo("1001");
         assertThat(Arrays.asList(ApiField.class.getAnnotation(Target.class).value()))
-                .containsExactlyInAnyOrder(ElementType.PARAMETER, ElementType.FIELD);
+                .containsExactly(ElementType.FIELD);
     }
 }

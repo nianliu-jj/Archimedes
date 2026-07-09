@@ -7,17 +7,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 标注在方法参数与 POJO 字段上，描述该参数/字段。
+ * 标注在 POJO 字段上，描述该字段（请求体/响应体结构树的说明与必填）。
  *
  * @author nianliu-jj
  * @since 2026-07-08
  */
 @Documented
-@Target({ElementType.PARAMETER, ElementType.FIELD})
+@Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ApiField {
 
-    /** 参数/字段说明。 */
+    /** 字段说明。 */
     String value() default "";
 
     /** 是否必填。 */
