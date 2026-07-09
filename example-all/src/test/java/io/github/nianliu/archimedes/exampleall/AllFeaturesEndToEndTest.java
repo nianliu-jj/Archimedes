@@ -105,6 +105,20 @@ class AllFeaturesEndToEndTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void detailDeclaresResponses() throws Exception {
+        // detail 端点（/api/orders/{orderNo}）声明了 @ApiResponse(200) 与 @ApiResponse(404)，
+        // 校验其被扫描进契约的 responses 区块，覆盖响应描述注解的端到端链路。
+        List<Map<String, Object>> apis = restApis();
+        Map<String, Object> detail = apis.stream()
+                .filter(a -> ((List<String>) a.get("paths")).contains("/api/orders/{orderNo}")
+                        && ((List<String>) a.get("httpMethods")).contains("GET"))
+                .findFirst().orElseThrow();
+        List<Map<String, Object>> responses = (List<Map<String, Object>>) detail.get("responses");
+        assertThat(responses).extracting(r -> r.get("code")).contains(200, 404);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void restExcludesSelfAndError() throws Exception {
         List<Map<String, Object>> apis = restApis();
         assertThat(apis).noneSatisfy(a ->

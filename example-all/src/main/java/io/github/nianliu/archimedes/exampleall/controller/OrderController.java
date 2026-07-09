@@ -30,7 +30,7 @@ import java.util.UUID;
 /**
  * REST 契约测试面：覆盖全部 HTTP 方法与参数形态
  * （@RequestParam/@PathVariable/@RequestBody/@RequestHeader、必填/可选、
- * @ApiField 参数说明、@Deprecated 标记、ResponseEntity 包装解包）。
+ * @ApiParam 参数说明、@Deprecated 标记、ResponseEntity 包装解包）。
  * 打开 http://localhost:8082/archimedes 的 REST Tab 即可对照契约与在线调试。
  *
  * @author nianliu-jj
