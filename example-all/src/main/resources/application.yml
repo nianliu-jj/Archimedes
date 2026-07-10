@@ -1,6 +1,8 @@
 # 全功能测试应用配置。
-# 注意：本应用刻意【不配置任何 archimedes.* 项】且【不放置任何 logback 配置文件】，
-# 用于验证"引入即用"默认行为与 logback 兜底注入；可配项清单见 README「配置」一节。
+# 注意：除下方【统一响应包装体展示】演示项外，本应用刻意【不配置其它 archimedes.* 项】
+# 且【不放置任何 logback 配置文件】，用于验证"引入即用"默认行为与 logback 兜底注入；
+# 可配项清单见 README「配置」一节。
+# 说明：response-wrapper 是需显式 opt-in 的可选增强（默认关闭），此处开启仅为演示契约展示效果。
 
 server:
   # 独立端口，避免与 example(8080)/example-boot2(8081) 冲突
@@ -9,6 +11,17 @@ server:
 spring:
   application:
     name: archimedes-example-all
+
+# ---- 统一响应包装体展示（演示 opt-in）----
+# 项目用 GlobalResponseAdvice(ResponseBodyAdvice) 把返回值包进 ResultVo{code,msg,data}；
+# 静态扫描无法感知运行时包装，故显式声明包装类，使契约 responseSchema 呈现完整包装体
+# （data 处嵌入方法真实返回类型）。标 @NoApiWrapper / 返回包装类 / ResponseEntity 的端点自动豁免。
+archimedes:
+  api:
+    response-wrapper:
+      enabled: true
+      wrapper-class: io.github.nianliu.archimedes.exampleall.wrapper.ResultVo
+      data-field: data
 
 # Dubbo provider：registry N/A = 不连注册中心、仅本地导出（契约扫描只需 ServiceBean 存在）
 dubbo:

@@ -3,6 +3,7 @@ package io.github.nianliu.archimedes.exampleall.controller;
 import io.github.nianliu.archimedes.annotation.ApiDoc;
 import io.github.nianliu.archimedes.annotation.ApiModule;
 import io.github.nianliu.archimedes.annotation.ApiParam;
+import io.github.nianliu.archimedes.annotation.NoApiWrapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +24,8 @@ import java.util.Map;
  */
 @RestController
 @ApiModule(name = "SQL 监控演示", description = "经 JdbcTemplate 产生真实 SQL 流量，供 DB Tab 观察连接池、SQL 统计、慢 SQL 与 traceId 关联")
+// 同 OrderController：运行时不经统一包装，标 @NoApiWrapper 使契约与真实返回一致（裸类型）。
+@NoApiWrapper
 public class OrderDbController {
 
     private final JdbcTemplate jdbc;

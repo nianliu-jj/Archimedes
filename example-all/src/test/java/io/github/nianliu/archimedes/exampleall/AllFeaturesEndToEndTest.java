@@ -145,6 +145,30 @@ class AllFeaturesEndToEndTest {
         assertThat(legacy.get("deprecated")).isEqualTo(true);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void wrappedEndpointShowsResultVoSchema() throws Exception {
+        List<Map<String, Object>> rest = restApis();
+        Map<String, Object> items = rest.stream()
+                .filter(a -> ((List<String>) a.get("paths")).contains("/api/wrapper/items"))
+                .findFirst().orElseThrow();
+        Map<String, Object> schema = (Map<String, Object>) items.get("responseSchema");
+        assertThat(schema.get("type")).isEqualTo("ResultVo");
+        List<Map<String, Object>> children = (List<Map<String, Object>>) schema.get("children");
+        assertThat(children).extracting(c -> c.get("name")).contains("code", "msg", "data");
+        Map<String, Object> data = children.stream()
+                .filter(c -> c.get("name").equals("data")).findFirst().orElseThrow();
+        assertThat(data.get("type")).isEqualTo("Item");
+        assertThat(data.get("array")).isEqualTo(true);
+
+        // @NoApiWrapper 端点：responseSchema 保持裸 Item（不套 ResultVo）
+        Map<String, Object> raw = rest.stream()
+                .filter(a -> ((List<String>) a.get("paths")).contains("/api/wrapper/items-raw"))
+                .findFirst().orElseThrow();
+        Map<String, Object> rawSchema = (Map<String, Object>) raw.get("responseSchema");
+        assertThat(rawSchema.get("type")).isEqualTo("Item");
+    }
+
     /* ========== 2. WebSocket 三形态 ========== */
 
     @Test

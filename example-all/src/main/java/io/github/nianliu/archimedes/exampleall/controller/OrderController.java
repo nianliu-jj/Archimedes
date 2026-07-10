@@ -7,6 +7,7 @@ import io.github.nianliu.archimedes.annotation.ApiDoc;
 import io.github.nianliu.archimedes.annotation.ApiModule;
 import io.github.nianliu.archimedes.annotation.ApiParam;
 import io.github.nianliu.archimedes.annotation.ApiResponse;
+import io.github.nianliu.archimedes.annotation.NoApiWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +40,9 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/orders")
 @ApiModule(name = "订单管理", description = "订单的增删改查演示，覆盖全部 HTTP 方法与参数形态")
+// 统一响应包装体演示：运行时包装 advice（GlobalResponseAdvice）仅作用于 wrapper 演示包，
+// 本控制器实际返回裸类型；标 @NoApiWrapper 使契约 responseSchema 与真实返回保持一致（不套 ResultVo）。
+@NoApiWrapper
 public class OrderController {
 
     private static final Logger log = LoggerFactory.getLogger(OrderController.class);

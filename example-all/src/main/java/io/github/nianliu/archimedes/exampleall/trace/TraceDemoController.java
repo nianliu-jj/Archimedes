@@ -2,6 +2,7 @@ package io.github.nianliu.archimedes.exampleall.trace;
 
 import io.github.nianliu.archimedes.annotation.ApiDoc;
 import io.github.nianliu.archimedes.annotation.ApiModule;
+import io.github.nianliu.archimedes.annotation.NoApiWrapper;
 import io.github.nianliu.archimedes.exampleall.trace.AsyncWorker;
 import io.github.nianliu.archimedes.trace.propagation.MdcWrappers;
 import org.slf4j.Logger;
@@ -32,6 +33,9 @@ import java.util.concurrent.ExecutorService;
 @RestController
 @RequestMapping("/trace")
 @ApiModule(name = "链路追踪演示", description = "四条路径演示 traceId 跨线程传递，用响应头 X-Trace-Id 回查链路日志")
+// 这些端点返回裸 String 且不经统一包装（String 无法被 ResultVo 包裹）；
+// 标 @NoApiWrapper 使契约 responseSchema 与真实返回一致（裸 String，不套 ResultVo）。
+@NoApiWrapper
 public class TraceDemoController {
 
     private static final Logger log = LoggerFactory.getLogger(TraceDemoController.class);
