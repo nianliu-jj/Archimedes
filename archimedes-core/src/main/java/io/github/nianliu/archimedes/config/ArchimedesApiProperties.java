@@ -38,6 +38,9 @@ public class ArchimedesApiProperties {
     /** 安全认证方案：配置后 UI 调试面板自动携带认证信息（类似 Swagger 的 Authorize 功能）。 */
     private SecurityScheme security = new SecurityScheme();
 
+    /** 统一响应包装体展示配置（如项目用 ResponseBodyAdvice 把返回值包进 ResultVo）。 */
+    private ResponseWrapper responseWrapper = new ResponseWrapper();
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -89,6 +92,14 @@ public class ArchimedesApiProperties {
 
     public void setSecurity(SecurityScheme security) {
         this.security = security;
+    }
+
+    public ResponseWrapper getResponseWrapper() {
+        return responseWrapper;
+    }
+
+    public void setResponseWrapper(ResponseWrapper responseWrapper) {
+        this.responseWrapper = responseWrapper;
     }
 
     /**
@@ -167,6 +178,47 @@ public class ArchimedesApiProperties {
 
         public void setSaTokenName(String saTokenName) {
             this.saTokenName = saTokenName;
+        }
+    }
+
+    /**
+     * 统一响应包装体配置：宿主项目常用 ResponseBodyAdvice 把 Controller 返回值统一包进外壳
+     * （如 {@code ResultVo{code,msg,data}}）。静态扫描无法感知运行时包装，故由此显式声明，
+     * 使 responseSchema 呈现完整包装体（data 处嵌入方法真实返回类型）。
+     */
+    public static class ResponseWrapper {
+
+        /** 是否启用包装体展示；默认关闭，不配置则契约行为完全不变。 */
+        private boolean enabled = false;
+
+        /** 包装类全限定名（配置键 wrapper-class）；为空或加载不到则视为未启用。 */
+        private String wrapperClass = "";
+
+        /** data 字段名（包装类中承载真实返回对象的字段），默认 "data"。 */
+        private String dataField = "data";
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getWrapperClass() {
+            return wrapperClass;
+        }
+
+        public void setWrapperClass(String wrapperClass) {
+            this.wrapperClass = wrapperClass;
+        }
+
+        public String getDataField() {
+            return dataField;
+        }
+
+        public void setDataField(String dataField) {
+            this.dataField = dataField;
         }
     }
 
