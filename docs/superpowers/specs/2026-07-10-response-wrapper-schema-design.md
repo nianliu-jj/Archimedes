@@ -81,8 +81,8 @@ public FieldInfo wrap(FieldInfo innerSchema, Method method);
 3. 反射加载包装类 → `TypeSchemaResolver.resolve(wrapperClass)` 得到外壳字段树
    （`code`/`msg`/`data`…）。
 4. 在外壳字段树的**直接子字段**中找名为 `dataField`（默认 `data`）的节点：
-   - 找到 → 保留该节点的 `name`、`description`、`required`、`validation`、`enumValues`，
-     把其 `type`/`array`/`children` **替换为 `innerSchema` 的对应值**（即把 data 的结构换成方法真实返回类型的结构）。`innerSchema` 为 null（void 内层）时不替换，data 节点保持包装类原样（通常是 `Object`）。
+   - 找到 → 保留该节点的 `name`、`description`、`required`、`validation`，
+     把其 `type`/`array`/`children`/`enumValues` **替换为 `innerSchema` 的对应值**（即把 data 的结构换成方法真实返回类型的结构；data 为枚举时其可选值也取内层真实枚举）。`innerSchema` 为 null（void 内层）时不替换，data 节点保持包装类原样（通常是 `Object`）。
    - 未找到 → 记 WARN（`data-field '{}' 在包装类 {} 中不存在`），返回 `innerSchema`（降级，不硬失败）。
 5. 返回改造后的外壳字段树作为最终 `responseSchema`。
 
@@ -122,6 +122,7 @@ Servlet 与 Reactive 两个子类共享（经 `AbstractRestApiScanner` 基类）
 - 内层为 void（`resolve` 返回 null）→ data 节点保留包装类原样，不替换。
 - 包装类解析复用 `TypeSchemaResolver` 现有深度上限 / 循环保护 / 异常降级。
 - 包装类加载失败（FQCN 错误 / 不在 classpath）→ 视为未启用，返回内层（不硬失败）。
+- **响应式栈已知边界**：豁免判定用方法**裸返回类型**。Servlet 下 `ResponseEntity<X>`/直返包装类的裸类型即其自身，豁免正确；但 WebFlux 下 `Mono<ResponseEntity<X>>`/`Mono<ResultVo>` 的裸类型是 `Mono`，ResponseEntity/直返包装类豁免不触发、会被套壳（内层结构仍由 `resolve` 正确解包，data 语义无误）。目标场景为 servlet，此为已知边界；如需响应式支持，可在 `isExempt` 前先解包 `Mono/Flux/CompletableFuture/Optional`（与 `TypeSchemaResolver.UNWRAP_TYPES` 收敛复用）。
 - watch 签名：`responseSchema` 已纳入 `ArchimedesWatchController.signature`，包装体变化自然被感知，无需额外改动。
 
 ## 六、演示与测试

@@ -8,7 +8,8 @@ import org.springframework.scheduling.annotation.EnableAsync;
 /**
  * 全功能测试应用入口：仅引入 archimedes-spring-boot-3-starter 即获得
  * 契约扫描（/archimedes/apis + UI）与链路追踪/日志查询全部能力——
- * 本应用不含任何 Archimedes 配置，验证"引入即用"。
+ * 除演示统一响应包装的可选 opt-in（archimedes.api.response-wrapper.*）外，
+ * 本应用不含其它 Archimedes 配置，验证"引入即用"。
  *
  * <p>覆盖面：REST（含 schema 提取）、WebSocket 三形态、Dubbo/gRPC/SOFA-TR/tRPC
  * 四协议、@Async 与自定义线程池的跨线程 traceId 传递、按 traceId 日志查询、
