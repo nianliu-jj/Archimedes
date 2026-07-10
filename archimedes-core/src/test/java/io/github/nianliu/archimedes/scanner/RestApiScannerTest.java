@@ -2,6 +2,7 @@ package io.github.nianliu.archimedes.scanner;
 
 import io.github.nianliu.archimedes.config.ArchimedesApiProperties;
 import io.github.nianliu.archimedes.model.ApiInfo;
+import io.github.nianliu.archimedes.model.FieldInfo;
 import io.github.nianliu.archimedes.model.ParamInfo;
 import io.github.nianliu.archimedes.model.ParamSource;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,15 @@ class RestApiScannerTest {
     private RestApiScanner scannerFor(Class<?>... controllers) {
         RequestMappingHandlerMapping mapping = SampleControllers.buildMapping(controllers);
         return new RestApiScanner(List.of(mapping), new ArchimedesApiProperties());
+    }
+
+    private RestApiScanner wrappedScannerFor(Class<?>... controllers) {
+        RequestMappingHandlerMapping mapping = SampleControllers.buildMapping(controllers);
+        ArchimedesApiProperties props = new ArchimedesApiProperties();
+        props.getResponseWrapper().setEnabled(true);
+        props.getResponseWrapper().setWrapperClass(SampleControllers.ResultVo.class.getName());
+        props.getResponseWrapper().setDataField("data");
+        return new RestApiScanner(List.of(mapping), props);
     }
 
     private ApiInfo find(List<ApiInfo> apis, String path) {
@@ -129,5 +139,35 @@ class RestApiScannerTest {
     void cachesResult() {
         RestApiScanner scanner = scannerFor(SampleControllers.UserController.class);
         assertThat(scanner.scan()).isSameAs(scanner.scan());
+    }
+
+    @Test
+    void responseSchemaWrappedIntoResultVo() {
+        List<ApiInfo> apis = wrappedScannerFor(SampleControllers.WrapController.class).scan();
+        ApiInfo list = find(apis, "/api/wrap/list");
+        // 顶层为包装类 ResultVo，data 处为 List<String>（array=true, type=String）
+        assertThat(list.getResponseSchema().getType()).isEqualTo("ResultVo");
+        FieldInfo data = list.getResponseSchema().getChildren().stream()
+                .filter(c -> c.getName().equals("data")).findFirst().orElseThrow();
+        assertThat(data.isArray()).isTrue();
+        assertThat(data.getType()).isEqualTo("String");
+    }
+
+    @Test
+    void noApiWrapperEndpointNotWrapped() {
+        List<ApiInfo> apis = wrappedScannerFor(SampleControllers.WrapController.class).scan();
+        ApiInfo raw = find(apis, "/api/wrap/raw");
+        // @NoApiWrapper：responseSchema 保持内层 List<String>（array=true, type=String），不套壳
+        assertThat(raw.getResponseSchema().getType()).isEqualTo("String");
+        assertThat(raw.getResponseSchema().isArray()).isTrue();
+    }
+
+    @Test
+    void defaultScannerDoesNotWrap() {
+        // 默认（未启用 wrapper）→ responseSchema 保持内层结构，向后兼容
+        List<ApiInfo> apis = scannerFor(SampleControllers.WrapController.class).scan();
+        ApiInfo list = find(apis, "/api/wrap/list");
+        assertThat(list.getResponseSchema().getType()).isEqualTo("String");
+        assertThat(list.getResponseSchema().isArray()).isTrue();
     }
 }

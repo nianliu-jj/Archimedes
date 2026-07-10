@@ -6,6 +6,7 @@ import io.github.nianliu.archimedes.model.ApiInfo;
 import io.github.nianliu.archimedes.model.FieldInfo;
 import io.github.nianliu.archimedes.model.ParamInfo;
 import io.github.nianliu.archimedes.model.ParamSource;
+import io.github.nianliu.archimedes.scanner.schema.ResponseWrapperResolver;
 import io.github.nianliu.archimedes.scanner.schema.TypeSchemaResolver;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.MethodParameter;
@@ -41,8 +42,12 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
     /** 扫描结果缓存：契约在应用启动后不变，用 CAS 保证并发首扫只落一份不可变列表。 */
     private final AtomicReference<List<ApiInfo>> cache = new AtomicReference<>();
 
+    /** 统一响应包装体解析器：由本基类用 properties 自建，Servlet/Reactive 子类共享（无需改子类构造）。 */
+    private final ResponseWrapperResolver responseWrapperResolver;
+
     protected AbstractRestApiScanner(ArchimedesApiProperties properties) {
         this.properties = properties;
+        this.responseWrapperResolver = new ResponseWrapperResolver(properties);
     }
 
     /** 首次调用扫描并缓存；后续返回同一不可变列表。 */
@@ -99,14 +104,18 @@ public abstract class AbstractRestApiScanner implements RestApiContributor {
         info.setDeprecated(method.isAnnotationPresent(Deprecated.class)
                 || handlerMethod.getBeanType().isAnnotationPresent(Deprecated.class)
                 || TypeSchemaResolver.operationDeprecated(method.getAnnotations()));
+        // 所属 Controller 类：声明上移至 responseSchema 之前，供响应包装体解析与后续 tag 复用同一变量
+        Class<?> controllerType = handlerMethod.getBeanType();
         // 契约增强：请求体/响应体字段结构（解析失败降级 null，不影响主体）
         info.setRequestBodySchema(resolveRequestBodySchema(handlerMethod));
-        info.setResponseSchema(TypeSchemaResolver.resolve(method.getGenericReturnType()));
+        // 契约增强：响应体字段结构；若配置了统一响应包装体，则把内层结构嵌入包装壳的 data 字段
+        FieldInfo innerResponseSchema = TypeSchemaResolver.resolve(method.getGenericReturnType());
+        info.setResponseSchema(responseWrapperResolver.wrap(
+                innerResponseSchema, method, controllerType));
         // 接口描述：读取自有 @ApiDoc 注解
         info.setSummary(TypeSchemaResolver.operationSummary(method.getAnnotations()));
         info.setOperationDescription(TypeSchemaResolver.operationDescription(method.getAnnotations()));
-        // 模块分组：读取 Controller 上的 @ApiModule 注解，无则用类简名兜底
-        Class<?> controllerType = handlerMethod.getBeanType();
+        // 模块分组：读取 Controller 上的 @ApiModule 注解，无则用类简名兜底（复用上方已声明的 controllerType）
         info.setTag(TypeSchemaResolver.tagName(controllerType.getAnnotations(), controllerType.getName()));
         info.setTagDescription(TypeSchemaResolver.tagDescription(controllerType.getAnnotations()));
         // 响应契约：读取自有 @ApiResponse（按状态码分条）

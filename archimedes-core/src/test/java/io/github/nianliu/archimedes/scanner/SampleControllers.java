@@ -65,6 +65,29 @@ public final class SampleControllers {
         }
     }
 
+    /** 测试用统一响应包装类。 */
+    public static class ResultVo {
+        public int code;
+        public String msg;
+        public Object data;
+    }
+
+    @RestController
+    @RequestMapping("/api/wrap")
+    public static class WrapController {
+
+        @GetMapping("/list")
+        public java.util.List<String> listEndpoint() {
+            return java.util.List.of();
+        }
+
+        @io.github.nianliu.archimedes.annotation.NoApiWrapper
+        @GetMapping("/raw")
+        public java.util.List<String> rawEndpoint() {
+            return java.util.List.of();
+        }
+    }
+
     /** 用给定 Controller 类构造并初始化一个 RequestMappingHandlerMapping。 */
     public static RequestMappingHandlerMapping buildMapping(Class<?>... controllers) {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
