@@ -297,6 +297,26 @@
             font-family: "JetBrains Mono", Consolas, monospace;
         }
 
+        /* ============ try-it 左右两栏 ============ */
+        .try-split { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+        /* 左栏=请求信息，右栏=响应信息；min-width 触发窄屏自动纵向堆叠 */
+        .try-req, .try-resp { flex: 1 1 0; min-width: 320px; }
+        .try-resp { border-left: 1px solid var(--border-2); padding-left: 16px; }
+        /* 窄屏（<860px）flex-wrap 换行后，左边框改为顶部分隔线 */
+        @media (max-width: 860px) {
+            .try-resp { border-left: none; padding-left: 0; border-top: 1px solid var(--border-2); padding-top: 4px; }
+        }
+        .try-cell .resp-toolbar { margin-bottom: 4px; }
+        .trace-btn {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: var(--bg-container); color: var(--primary);
+            border: 1px solid var(--border); border-radius: 5px;
+            padding: 5px 12px; cursor: pointer; font-size: 12px; font-weight: 600;
+            transition: background .15s, border-color .15s;
+        }
+        .trace-btn:hover { background: var(--bg-soft); border-color: var(--primary); }
+        .trace-btn .ico { font-size: 13px; }
+
         /* ============ panel 显隐 ============ */
         .panel { display: none; }
         .panel.active { display: block; animation: fade .2s ease; }
@@ -486,6 +506,7 @@
     var restRendered = [];
     var openTry = -1;
     var tryApi = null;
+    var tryLastTraceId = null;  // 最近一次试一试响应解析到的 traceId（供右栏「查看链路日志」按钮使用；切换接口时重置）
     var securityConfig = null;  // {type, headerName, bearerPrefix, apiKeyIn, apiKeyName, saTokenName}
     var authToken = '';         // 用户输入的认证 token/密码
     var configData = null;      // /config 响应：{hotRefreshEnabled, dynamicKeys, propertySources}
@@ -653,6 +674,7 @@
         if (wasOpen === i) { return; }
         openTry = i;
         tryApi = restRendered[i];
+        tryLastTraceId = null;  // 新接口面板：清空上一次的 traceId
         var card = document.getElementById('rest-c' + i);
         var box = document.createElement('div');
         box.id = 'tryRow';
@@ -765,7 +787,8 @@
             + (api.operationDescription ? ' <span class="meta">— ' + esc(api.operationDescription) + '</span>' : '') + '</div>' : '';
         var verb0 = methods[0];
         var verbCls = /^(GET|POST|PUT|DELETE|PATCH)$/.test(verb0) ? verb0 : 'OTHER';
-        return descLine + '<div>'
+        // ---- 左栏：请求信息（说明 + verb/path/Send + Query/Headers/Body + Request Fields）----
+        var leftHtml = descLine + '<div>'
             + '<span class="verb verb-' + verbCls + '">' + esc(verb0) + '</span> '
             + '<code style="font-size:13px">' + esc(api.paths[0]) + '</code>'
             + '<input type="hidden" id="tryMethod" value="' + esc(methods[0]) + '">'
@@ -782,10 +805,18 @@
                     + '<textarea id="tryBody" placeholder="request body (skipped for GET/HEAD)">'
                     + esc(bodyExample) + '</textarea>'
                 : '')
-            + schemaTableHtml('Request Fields', api.requestBodySchema)
+            + schemaTableHtml('Request Fields', api.requestBodySchema);
+        // ---- 右栏：响应信息（常驻链路按钮 + 实时结果 + Response Fields + 声明的 Responses）----
+        var rightHtml = '<div class="resp-toolbar">'
+            + '<button class="trace-btn" onclick="openTraceFromTry()" title="跳转到链路追踪，查询本次请求日志">'
+            + '<span class="ico">🔗</span> 查看链路日志</button></div>'
+            + '<div class="result" id="tryResult"><span class="empty">发送请求后在此显示响应</span></div>'
             + schemaTableHtml('Response Fields', api.responseSchema)
-            + responsesHtml(api)
-            + '<div class="result" id="tryResult"></div>';
+            + responsesHtml(api);
+        return '<div class="try-split">'
+            + '<div class="try-req">' + leftHtml + '</div>'
+            + '<div class="try-resp">' + rightHtml + '</div>'
+            + '</div>';
     }
 
     function addKvRow(containerId) {
@@ -989,16 +1020,27 @@
             if (traceId === null && k.toLowerCase().indexOf('trace') >= 0) { traceId = v; }
         });
         var cls = r.status < 400 ? 'status-ok' : 'status-err';
+        // 记录本次 traceId，供右栏常驻「查看链路日志」按钮跳转使用
+        tryLastTraceId = traceId;
         document.getElementById('tryResult').innerHTML =
             '<div><span class="' + cls + '">HTTP ' + r.status + '</span>'
             + '<span class="count">' + ms + ' ms</span>'
-            + (traceId
-                ? ' <button class="try-btn" data-trace="' + esc(traceId)
-                    + '" onclick="jumpToTrace(this.getAttribute(\'data-trace\'))">View trace logs</button>'
-                : '')
+            + (traceId ? ' <span class="meta">traceId: <code>' + esc(traceId) + '</code></span>' : '')
             + '</div>'
             + '<h3>Response Headers</h3><pre>' + esc(headerLines.join('\n')) + '</pre>'
             + '<h3>Response Body</h3><pre>' + (pretty === '' ? '(empty)' : esc(pretty)) + '</pre>';
+    }
+
+    /**
+     * 右栏常驻「查看链路日志」按钮的点击处理：
+     * 若已从最近一次响应解析到 traceId，则带上它跳转并自动查询；否则仅切到链路追踪标签页。
+     */
+    function openTraceFromTry() {
+        if (tryLastTraceId) {
+            jumpToTrace(tryLastTraceId);
+        } else {
+            switchTab('trace');
+        }
     }
 
     function jumpToTrace(traceId) {
